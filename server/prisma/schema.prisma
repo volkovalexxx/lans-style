@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id        Int       @id @default(autoincrement())
+  slug      String    @unique
+  nameRu    String
+  nameEn    String
+  image     String?
+  order     Int       @default(0)
+  products  Product[]
+  createdAt DateTime  @default(now())
+}
+
+model Product {
+  id         Int         @id @default(autoincrement())
+  slug       String      @unique
+  sku        String?
+  nameRu     String
+  nameEn     String
+  descRu     String?
+  descEn     String?
+  priceByn   Decimal
+  priceUsd   Decimal
+  priceRub   Decimal   @default(0)
+  sizes      String[]
+  colors     String[]
+  labels     String[]
+  images     String[]
+  inStock    Boolean     @default(true)
+  isNew      Boolean     @default(false)
+  categoryId Int
+  category   Category    @relation(fields: [categoryId], references: [id])
+  orderItems OrderItem[]
+  createdAt  DateTime    @default(now())
+}
+
+model Order {
+  id        Int         @id @default(autoincrement())
+  name      String
+  phone     String
+  email     String?
+  comment   String?
+  status    String      @default("new")
+  items     OrderItem[]
+  createdAt DateTime    @default(now())
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  productId Int
+  product   Product @relation(fields: [productId], references: [id])
+  size      String?
+  color     String?
+  quantity  Int     @default(1)
+}
+
+model WholesaleRequest {
+  id        Int      @id @default(autoincrement())
+  company   String
+  name      String
+  phone     String
+  email     String
+  city      String?
+  comment   String?
+  status    String   @default("new")
+  createdAt DateTime @default(now())
+}
+
+model PageVisit {
+  id        Int      @id @default(autoincrement())
+  page      String
+  ip        String?
+  userAgent String?
+  createdAt DateTime @default(now())
+}
+
+model Admin {
+  id       Int    @id @default(autoincrement())
+  login    String @unique
+  password String
+}
+
+model SitePage {
+  id        Int     @id @default(autoincrement())
+  slug      String  @unique
+  titleRu   String
+  titleEn   String
+  contentRu String?
+  contentEn String?
+  isActive  Boolean @default(true)
+}

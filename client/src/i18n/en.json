@@ -1,0 +1,126 @@
+{
+  "nav": {
+    "home": "Home",
+    "catalog": "Catalog",
+    "about": "About",
+    "contacts": "Contacts",
+    "wholesale": "Wholesale",
+    "cart": "Cart",
+    "favorites": "Favorites"
+  },
+  "home": {
+    "banner_title": "Elegance in Every Detail",
+    "banner_subtitle": "New Women's Clothing Collection",
+    "banner_cta": "View Catalog",
+    "new_arrivals": "New Arrivals",
+    "categories": "Categories",
+    "about_short": "About the Brand",
+    "about_text": "Lans Style is a Belarusian brand creating elegant women's clothing from quality materials. We believe every woman deserves to feel special.",
+    "usp_quality_title": "Own Manufacturing",
+    "usp_quality_desc": "Over 10,000 units per month",
+    "usp_sizes_title": "Sizes 40–52",
+    "usp_sizes_desc": "For every body type",
+    "usp_delivery_title": "Worldwide Delivery",
+    "usp_delivery_desc": "Belarus, Russia, CIS & beyond",
+    "usp_since_title": "Since 2007",
+    "usp_since_desc": "15+ years on the market",
+    "editorial_caption": "Seasonal Collection",
+    "editorial_title": "Your style is our calling",
+    "editorial_desc": "Every piece is crafted with attention to detail: precise cuts, noble fabrics and care in every stitch.",
+    "editorial_cta": "About the brand",
+    "categories_caption": "Categories",
+    "categories_title": "What are you looking for?",
+    "see_all": "See all"
+  },
+  "catalog": {
+    "title": "Catalog",
+    "all_categories": "All Categories",
+    "sort": "Sort by",
+    "sort_new": "New Arrivals",
+    "sort_price_asc": "Price: Low to High",
+    "sort_price_desc": "Price: High to Low",
+    "sort_name": "By Name",
+    "no_products": "No products found",
+    "in_stock": "In Stock",
+    "out_of_stock": "Out of Stock",
+    "filters": "Filters",
+    "size": "Size",
+    "color": "Color",
+    "price": "Price",
+    "price_from": "from",
+    "price_to": "to",
+    "apply": "Apply",
+    "reset": "Reset",
+    "all_sizes": "All sizes",
+    "all_colors": "All colors",
+    "selected": "selected"
+  },
+  "product": {
+    "size": "Size",
+    "color": "Color",
+    "add_to_cart": "Add to Cart",
+    "added": "Added",
+    "description": "Description",
+    "back": "Back to Catalog"
+  },
+  "cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty",
+    "total": "Total",
+    "checkout": "Checkout",
+    "remove": "Remove",
+    "continue": "Continue Shopping"
+  },
+  "order": {
+    "title": "Checkout",
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "comment": "Comment",
+    "submit": "Place Order",
+    "success": "Order placed successfully! We will contact you shortly.",
+    "error": "Error placing order"
+  },
+  "wholesale": {
+    "title": "Become a Wholesale Buyer",
+    "subtitle": "Fill out the form and we will contact you to discuss partnership terms",
+    "company": "Company",
+    "name": "Contact Person",
+    "phone": "Phone",
+    "email": "Email",
+    "city": "City",
+    "comment": "Comment",
+    "submit": "Submit Request",
+    "success": "Request submitted! We will contact you.",
+    "error": "Error submitting request"
+  },
+  "about": {
+    "title": "About Us"
+  },
+  "contacts": {
+    "title": "Contacts"
+  },
+  "favorites": {
+    "title": "Favorites",
+    "empty": "No favorites yet"
+  },
+  "order_success": {
+    "title": "Order Placed!",
+    "message": "Thank you for your order. Our manager will contact you shortly to confirm.",
+    "contact": "If you have any questions — call us or send an email.",
+    "to_catalog": "Go to Catalog",
+    "to_home": "Go to Home"
+  },
+  "search": {
+    "placeholder": "Search products...",
+    "title": "Search",
+    "results_for": "Results for",
+    "no_results": "Nothing found",
+    "view_all": "View all results"
+  },
+  "currency": "USD",
+  "footer": {
+    "rights": "All rights reserved",
+    "brand": "Lans Style"
+  }
+}
