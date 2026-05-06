@@ -14,8 +14,15 @@ import { useApi } from '../hooks/useApi';
 export default function Home() {
   const { t, i18n } = useTranslation();
   const isRu = i18n.language === 'ru';
-  const { data: categories } = useApi<any[]>('/categories');
-  const { data: productsData } = useApi<{ products: any[] }>('/products', { isNew: 'true', limit: '8' });
+  const { data: categories, loading: catsLoading } = useApi<any[]>('/categories');
+  const { data: newProductsData } = useApi<{ products: any[] }>('/products', { isNew: 'true', limit: '8' });
+  const { data: latestProductsData, loading: latestLoading } = useApi<{ products: any[] }>('/products', { limit: '8', sort: 'new' });
+
+  // Show whichever arrives first; prefer isNew if non-empty
+  const productsData = (newProductsData?.products?.length ?? 0) > 0
+    ? newProductsData
+    : latestProductsData;
+  const productsLoading = !productsData && latestLoading;
 
   const featured = categories?.[0];
   const rest = categories?.slice(1, 5) || [];
@@ -33,8 +40,9 @@ export default function Home() {
   return (
     <div>
       {/* Banner */}
-      <section className="relative h-[75vh] min-h-[540px] bg-[#F5F0EB] flex items-center overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A1A]/50 to-transparent z-10" />
+      <section className="relative h-[75vh] min-h-[540px] bg-[#1A1A1A] flex items-center overflow-hidden">
+        <img src="/hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover object-top" />
+        <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A1A]/70 via-[#1A1A1A]/30 to-transparent z-10" />
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 w-full">
           <motion.p
             initial={{ opacity: 0, y: 20 }}
@@ -102,25 +110,35 @@ export default function Home() {
       </section>
 
       {/* New Arrivals carousel */}
-      {productsData?.products && productsData.products.length > 0 && (
-        <section className="max-w-7xl mx-auto px-0 sm:px-6 py-16 md:py-24">
-          <div className="flex items-end justify-between mb-8 md:mb-12 px-4 sm:px-0">
-            <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-[#C4A882] mb-2">Collection</p>
-              <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold">
-                {t('home.new_arrivals')}
-              </h2>
-            </div>
-            <Link
-              to="/catalog?isNew=true"
-              className="text-sm text-[#C4A882] hover:underline font-medium whitespace-nowrap"
-            >
-              {t('home.see_all')} →
-            </Link>
+      <section className="max-w-7xl mx-auto px-0 sm:px-6 py-16 md:py-24">
+        <div className="flex items-end justify-between mb-8 md:mb-12 px-4 sm:px-0">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-[#C4A882] mb-2">Collection</p>
+            <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold">
+              {t('home.new_arrivals')}
+            </h2>
           </div>
+          <Link
+            to="/catalog?isNew=true"
+            className="text-sm text-[#C4A882] hover:underline font-medium whitespace-nowrap"
+          >
+            {t('home.see_all')} →
+          </Link>
+        </div>
+        {productsLoading ? (
+          <div className="flex gap-4 overflow-hidden px-4 sm:px-0">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="flex-shrink-0 w-56 md:w-64 animate-pulse">
+                <div className="aspect-[3/4] rounded-2xl bg-[#E8DDD0] mb-3" />
+                <div className="h-3 bg-[#E8DDD0] rounded w-3/4 mb-2" />
+                <div className="h-3 bg-[#E8DDD0] rounded w-1/2" />
+              </div>
+            ))}
+          </div>
+        ) : productsData?.products && productsData.products.length > 0 ? (
           <ProductCarousel products={productsData.products} />
-        </section>
-      )}
+        ) : null}
+      </section>
 
       {/* Editorial banner */}
       <section className="relative bg-[#1A1A1A] overflow-hidden">
@@ -179,47 +197,54 @@ export default function Home() {
       </section>
 
       {/* Categories — bento grid */}
-      {categories && categories.length > 0 && (
-        <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24">
-          <div className="flex items-end justify-between mb-8 md:mb-12">
-            <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-[#C4A882] mb-2">
-                {t('home.categories_caption')}
-              </p>
-              <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold">
-                {t('home.categories_title')}
-              </h2>
-            </div>
-            <Link
-              to="/catalog"
-              className="text-sm text-[#C4A882] hover:underline font-medium whitespace-nowrap"
-            >
-              {t('home.see_all')} →
-            </Link>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 py-16 md:py-24">
+        <div className="flex items-end justify-between mb-8 md:mb-12">
+          <div>
+            <p className="text-xs uppercase tracking-[0.25em] text-[#C4A882] mb-2">
+              {t('home.categories_caption')}
+            </p>
+            <h2 className="font-display text-3xl md:text-4xl lg:text-5xl font-semibold">
+              {t('home.categories_title')}
+            </h2>
           </div>
+          <Link
+            to="/catalog"
+            className="text-sm text-[#C4A882] hover:underline font-medium whitespace-nowrap"
+          >
+            {t('home.see_all')} →
+          </Link>
+        </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[180px] md:auto-rows-[220px] gap-3 md:gap-4">
-            {/* Featured — large */}
-            {featured && (
-              <BentoCategoryCard
-                category={featured}
-                name={isRu ? featured.nameRu : featured.nameEn}
-                featured
-                className="col-span-2 row-span-2"
-              />
-            )}
-            {/* Rest */}
-            {rest.map((cat) => (
-              <BentoCategoryCard
-                key={cat.id}
-                category={cat}
-                name={isRu ? cat.nameRu : cat.nameEn}
-                className="col-span-1 row-span-1"
-              />
-            ))}
-          </div>
-        </section>
-      )}
+        <div className="grid grid-cols-2 md:grid-cols-4 auto-rows-[180px] md:auto-rows-[220px] gap-3 md:gap-4">
+          {catsLoading ? (
+            <>
+              <div className="col-span-2 row-span-2 rounded-2xl md:rounded-3xl bg-[#E8DDD0] animate-pulse" />
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="col-span-1 row-span-1 rounded-2xl bg-[#E8DDD0] animate-pulse" />
+              ))}
+            </>
+          ) : (
+            <>
+              {featured && (
+                <BentoCategoryCard
+                  category={featured}
+                  name={isRu ? featured.nameRu : featured.nameEn}
+                  featured
+                  className="col-span-2 row-span-2"
+                />
+              )}
+              {rest.map((cat) => (
+                <BentoCategoryCard
+                  key={cat.id}
+                  category={cat}
+                  name={isRu ? cat.nameRu : cat.nameEn}
+                  className="col-span-1 row-span-1"
+                />
+              ))}
+            </>
+          )}
+        </div>
+      </section>
 
       {/* About short */}
       <section className="bg-[#F5F0EB] py-20">
@@ -297,7 +322,7 @@ function BentoCategoryCard({ category, name, featured, className = '' }: BentoPr
           </h3>
           {category._count && (
             <p className={`text-white/70 mt-1 ${featured ? 'text-sm md:text-base' : 'text-xs'}`}>
-              {category._count.products} items
+              {category._count.products} товаров
             </p>
           )}
 

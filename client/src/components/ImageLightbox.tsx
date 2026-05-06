@@ -58,7 +58,7 @@ export default function ImageLightbox({ open, images, index, onChange, onClose }
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.96 }}
             transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="relative w-full h-full md:w-auto md:h-auto md:max-w-5xl md:max-h-[90vh] md:bg-white md:rounded-2xl md:shadow-2xl flex flex-col overflow-hidden"
+            className="relative w-full h-full md:w-auto md:h-[90vh] md:max-w-4xl md:bg-white md:rounded-2xl md:shadow-2xl flex flex-col overflow-hidden"
           >
             {/* Close button */}
             <button

@@ -42,6 +42,11 @@ async function main() {
       update: {},
       create: { slug: 'outerwear', nameRu: 'Верхняя одежда', nameEn: 'Outerwear', order: 5 },
     }),
+    prisma.category.upsert({
+      where: { slug: 'costumes' },
+      update: {},
+      create: { slug: 'costumes', nameRu: 'Костюмы', nameEn: 'Suits', order: 6 },
+    }),
   ]);
 
   // Create sample products
@@ -153,6 +158,97 @@ async function main() {
       create: product,
     });
   }
+
+  // Create test costume (top + bottom + set)
+  const costumeCategory = categories[5]; // "Костюмы"
+
+  const costumeTop = await prisma.product.upsert({
+    where: { slug: 'costume-blouse-cream' },
+    update: {},
+    create: {
+      slug: 'costume-blouse-cream',
+      nameRu: 'Блузка кремовая (от костюма)',
+      nameEn: 'Cream Blouse (from set)',
+      descRu: 'Элегантная блузка из шёлка с V-образным вырезом. Часть кремового костюма.',
+      descEn: 'Elegant silk blouse with V-neckline. Part of the cream suit.',
+      priceByn: 149.0,
+      priceUsd: 46.0,
+      priceRub: 4300,
+      sizes: ['XS', 'S', 'M', 'L', 'XL'],
+      colors: [
+        JSON.stringify({ hex: '#F5F0EB', name: 'Кремовый' }),
+        JSON.stringify({ hex: '#FFFFFF', name: 'Белый' }),
+      ],
+      images: [
+        'https://picsum.photos/seed/costume-top-a/720/960',
+        'https://picsum.photos/seed/costume-top-b/720/960',
+      ],
+      isNew: true,
+      labels: ['NEW'],
+      inStock: true,
+      categoryId: costumeCategory.id,
+    },
+  });
+
+  const costumeBottom = await prisma.product.upsert({
+    where: { slug: 'costume-trousers-cream' },
+    update: {},
+    create: {
+      slug: 'costume-trousers-cream',
+      nameRu: 'Брюки кремовые (от костюма)',
+      nameEn: 'Cream Trousers (from set)',
+      descRu: 'Классические брюки прямого кроя. Часть кремового костюма.',
+      descEn: 'Classic straight-cut trousers. Part of the cream suit.',
+      priceByn: 139.0,
+      priceUsd: 43.0,
+      priceRub: 4000,
+      sizes: ['XS', 'S', 'M', 'L', 'XL'],
+      colors: [
+        JSON.stringify({ hex: '#F5F0EB', name: 'Кремовый' }),
+        JSON.stringify({ hex: '#FFFFFF', name: 'Белый' }),
+      ],
+      images: [
+        'https://picsum.photos/seed/costume-bot-a/720/960',
+        'https://picsum.photos/seed/costume-bot-b/720/960',
+      ],
+      isNew: false,
+      labels: [],
+      inStock: true,
+      categoryId: costumeCategory.id,
+    },
+  });
+
+  await prisma.product.upsert({
+    where: { slug: 'kostum-kremovy-klassika' },
+    update: {
+      costumeTopId: costumeTop.id,
+      costumeBottomId: costumeBottom.id,
+    },
+    create: {
+      slug: 'kostum-kremovy-klassika',
+      nameRu: 'Костюм кремовый классика',
+      nameEn: 'Classic Cream Suit',
+      descRu: 'Элегантный деловой костюм: шёлковая блузка + классические брюки прямого кроя. Покупайте комплектом и экономьте.',
+      descEn: 'Elegant business suit: silk blouse + classic straight trousers. Buy as a set and save.',
+      priceByn: 259.0,
+      priceUsd: 80.0,
+      priceRub: 7500,
+      sizes: [],
+      colors: [],
+      images: [
+        'https://picsum.photos/seed/costume-set-a/720/960',
+        'https://picsum.photos/seed/costume-set-b/720/960',
+        'https://picsum.photos/seed/costume-set-c/720/960',
+      ],
+      isNew: true,
+      labels: ['NEW', 'HIT'],
+      inStock: true,
+      isCostume: true,
+      costumeTopId: costumeTop.id,
+      costumeBottomId: costumeBottom.id,
+      categoryId: costumeCategory.id,
+    },
+  });
 
   // Create site pages
   const pages = [

@@ -29,8 +29,17 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 min-[1200px]:h-20">
           {/* Logo */}
-          <Link to="/" className="font-display text-2xl min-[1200px]:text-3xl font-semibold tracking-tight text-[#1A1A1A]">
-            Lans Style
+          <Link to="/" style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.05, textDecoration: 'none' }}>
+            {/* "L" slightly bigger than "ANS" */}
+            <span style={{ fontFamily: 'var(--font-logo)', fontWeight: 300, letterSpacing: '0.2em', color: '#1A1A1A' }}>
+              <span style={{ fontSize: 'clamp(1.28rem, 2.1vw, 1.58rem)' }}>L</span>
+              <span style={{ fontSize: 'clamp(1.2rem, 2vw, 1.5rem)' }}>ANS</span>
+            </span>
+            {/* "S" slightly bigger than "TYLE" */}
+            <span style={{ fontFamily: 'var(--font-logo)', fontWeight: 300, letterSpacing: '0.18em', color: '#1A1A1A' }}>
+              <span style={{ fontSize: 'clamp(1.68rem, 2.75vw, 2.08rem)' }}>S</span>
+              <span style={{ fontSize: 'clamp(1.6rem, 2.6vw, 2rem)' }}>TYLE</span>
+            </span>
           </Link>
 
           {/* Desktop Nav (≥1200px) */}

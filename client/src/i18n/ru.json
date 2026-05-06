@@ -61,7 +61,15 @@
     "add_to_cart": "В корзину",
     "added": "Добавлено",
     "description": "Описание",
-    "back": "Назад в каталог"
+    "back": "Назад в каталог",
+    "costume_label": "КОСТЮМ",
+    "costume_top": "Верх",
+    "costume_bottom": "Низ",
+    "buy_top_only": "Купить верх отдельно",
+    "buy_bottom_only": "Купить низ отдельно",
+    "buy_set": "Купить костюмом",
+    "set_price": "Цена за комплект",
+    "set_savings": "Экономия"
   },
   "cart": {
     "title": "Корзина",

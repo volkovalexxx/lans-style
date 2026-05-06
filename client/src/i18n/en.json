@@ -61,7 +61,15 @@
     "add_to_cart": "Add to Cart",
     "added": "Added",
     "description": "Description",
-    "back": "Back to Catalog"
+    "back": "Back to Catalog",
+    "costume_label": "SET",
+    "costume_top": "Top",
+    "costume_bottom": "Bottom",
+    "buy_top_only": "Buy top separately",
+    "buy_bottom_only": "Buy bottom separately",
+    "buy_set": "Buy as a set",
+    "set_price": "Set price",
+    "set_savings": "You save"
   },
   "cart": {
     "title": "Cart",

@@ -6,9 +6,11 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 5173,
+    host: true,
+    watch: { usePolling: true, interval: 500 },
     proxy: {
-      '/api': 'http://localhost:5000',
-      '/uploads': 'http://localhost:5000',
+      '/api': process.env.API_TARGET || 'http://localhost:5000',
+      '/uploads': process.env.API_TARGET || 'http://localhost:5000',
     },
   },
 });

@@ -93,16 +93,22 @@ export function formatProduct(p: {
   colors: string[];
   labels: string[];
   inStock: boolean;
+  isCostume?: boolean;
   category?: { nameRu: string } | null;
+  costumeTop?: { nameRu: string; priceByn: any } | null;
+  costumeBottom?: { nameRu: string; priceByn: any } | null;
 }): string {
   const lines = [
     p.sku ? `🔖 <b>Артикул:</b> <code>${esc(p.sku)}</code>` : '',
+    p.isCostume ? `👗 <b>Тип:</b> Костюм / Комплект` : '',
     `🇷🇺 <b>Наименование:</b> ${esc(p.nameRu)}`,
     p.nameEn ? `🇺🇸 <b>Наименование:</b> ${esc(p.nameEn)}` : '',
     p.category ? `📂 <b>Категория:</b> ${esc(p.category.nameRu)}` : '',
-    `💰 <b>Цена:</b> ${p.priceByn} BYN · ${p.priceUsd} $ · ${p.priceRub || 0} ₽`,
-    p.sizes.length ? `📏 <b>Размеры:</b> ${p.sizes.join(', ')}` : '',
-    p.colors.length ? `🎨 <b>Цвета:</b> ${p.colors.map(formatColor).join(', ')}` : '',
+    `💰 <b>Цена${p.isCostume ? ' (комплект)' : ''}:</b> ${p.priceByn} BYN · ${p.priceUsd} $ · ${p.priceRub || 0} ₽`,
+    p.isCostume && p.costumeTop ? `👆 <b>Верх:</b> ${esc(p.costumeTop.nameRu)} — ${p.costumeTop.priceByn} BYN` : '',
+    p.isCostume && p.costumeBottom ? `👇 <b>Низ:</b> ${esc(p.costumeBottom.nameRu)} — ${p.costumeBottom.priceByn} BYN` : '',
+    !p.isCostume && p.sizes.length ? `📏 <b>Размеры:</b> ${p.sizes.join(', ')}` : '',
+    !p.isCostume && p.colors.length ? `🎨 <b>Цвета:</b> ${p.colors.map(formatColor).join(', ')}` : '',
     p.labels.length ? `🏷 <b>Метки:</b> ${p.labels.join(', ')}` : '',
     p.inStock ? '✅ В наличии' : '❌ Нет в наличии',
   ].filter(Boolean);

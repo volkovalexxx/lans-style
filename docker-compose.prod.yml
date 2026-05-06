@@ -3,8 +3,6 @@ services:
     image: postgres:16-alpine
     container_name: lans_postgres
     restart: unless-stopped
-    ports:
-      - '5432:5432'
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-lans_style}
       POSTGRES_USER: ${POSTGRES_USER:-lans}
@@ -12,50 +10,34 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
 
-  pgadmin:
-    image: dpage/pgadmin4:latest
-    container_name: lans_pgadmin
-    restart: unless-stopped
-    ports:
-      - '5050:80'
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@lans.by}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
-    depends_on:
-      - postgres
-
   server:
-    build: ./server
+    build:
+      context: ./server
+      dockerfile: Dockerfile.prod
     container_name: lans_server
     restart: unless-stopped
-    ports:
-      - '5000:5000'
     environment:
-      DATABASE_URL: postgresql://lans:lans_secret@postgres:5432/lans_style
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lans}:${POSTGRES_PASSWORD:-lans_secret}@postgres:5432/${POSTGRES_DB:-lans_style}
       PORT: 5000
-      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:-}
+      NODE_ENV: production
     volumes:
-      - ./server/src:/app/src
-      - ./server/prisma:/app/prisma
       - ./server/uploads:/app/uploads
     depends_on:
       - postgres
 
   client:
-    build: ./client
+    build:
+      context: ./client
+      dockerfile: Dockerfile.prod
     container_name: lans_client
     restart: unless-stopped
     ports:
-      - '5173:5173'
-    environment:
-      API_TARGET: http://server:5000
-    volumes:
-      - ./client/src:/app/src
-      - ./client/public:/app/public
+      - '80:80'
     depends_on:
       - server
 

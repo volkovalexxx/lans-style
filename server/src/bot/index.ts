@@ -386,7 +386,10 @@ export function startBot() {
   }
 
   async function sendProductCard(ctx: Context, id: number) {
-    const p = await prisma.product.findUnique({ where: { id }, include: { category: true } });
+    const p = await prisma.product.findUnique({
+      where: { id },
+      include: { category: true, costumeTop: true, costumeBottom: true },
+    });
     if (!p) { await ctx.reply('Товар не найден'); return; }
     const paths = resolveImages(p.images, 10);
     await sendPhotoCard(ctx, paths, formatProduct(p), { keyboard: productCardKb(p) });

@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {
@@ -28,7 +29,7 @@ model Product {
   descEn     String?
   priceByn   Decimal
   priceUsd   Decimal
-  priceRub   Decimal   @default(0)
+  priceRub   Decimal     @default(0)
   sizes      String[]
   colors     String[]
   labels     String[]
@@ -39,6 +40,14 @@ model Product {
   category   Category    @relation(fields: [categoryId], references: [id])
   orderItems OrderItem[]
   createdAt  DateTime    @default(now())
+
+  isCostume       Boolean  @default(false)
+  costumeTopId    Int?
+  costumeBottomId Int?
+  costumeTop      Product?  @relation("CostumeTop",    fields: [costumeTopId],    references: [id], onDelete: SetNull)
+  costumeBottom   Product?  @relation("CostumeBottom", fields: [costumeBottomId], references: [id], onDelete: SetNull)
+  usedAsTop       Product[] @relation("CostumeTop")
+  usedAsBottom    Product[] @relation("CostumeBottom")
 }
 
 model Order {

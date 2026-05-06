@@ -31,6 +31,15 @@ export default function ProductPage() {
   const thumbsRef = useRef<HTMLDivElement>(null);
   const activeThumbRef = useRef<HTMLButtonElement>(null);
 
+  // Costume-specific state
+  const [selectedTopSize, setSelectedTopSize] = useState('');
+  const [selectedTopColor, setSelectedTopColor] = useState('');
+  const [selectedBottomSize, setSelectedBottomSize] = useState('');
+  const [selectedBottomColor, setSelectedBottomColor] = useState('');
+  const [addedTop, setAddedTop] = useState(false);
+  const [addedBottom, setAddedBottom] = useState(false);
+  const [addedSet, setAddedSet] = useState(false);
+
   useEffect(() => {
     activeThumbRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
   }, [selectedImage]);
@@ -60,6 +69,361 @@ export default function ProductPage() {
     setTimeout(() => setAdded(false), 2000);
   };
 
+  const handleAddTopToCart = () => {
+    const top = product.costumeTop;
+    addItem({
+      productId: top.id,
+      slug: top.slug,
+      nameRu: top.nameRu,
+      nameEn: top.nameEn,
+      priceByn: Number(top.priceByn),
+      priceUsd: Number(top.priceUsd),
+      priceRub: Number(top.priceRub || 0),
+      image: top.images?.[0],
+      size: selectedTopSize,
+      color: selectedTopColor,
+    });
+    setAddedTop(true);
+    setTimeout(() => setAddedTop(false), 2000);
+  };
+
+  const handleAddBottomToCart = () => {
+    const bottom = product.costumeBottom;
+    addItem({
+      productId: bottom.id,
+      slug: bottom.slug,
+      nameRu: bottom.nameRu,
+      nameEn: bottom.nameEn,
+      priceByn: Number(bottom.priceByn),
+      priceUsd: Number(bottom.priceUsd),
+      priceRub: Number(bottom.priceRub || 0),
+      image: bottom.images?.[0],
+      size: selectedBottomSize,
+      color: selectedBottomColor,
+    });
+    setAddedBottom(true);
+    setTimeout(() => setAddedBottom(false), 2000);
+  };
+
+  const handleAddSetToCart = () => {
+    handleAddTopToCart();
+    handleAddBottomToCart();
+    setAddedTop(false);
+    setAddedBottom(false);
+    setAddedSet(true);
+    setTimeout(() => setAddedSet(false), 2500);
+  };
+
+  // Images to show in gallery: product's own, fallback to top+bottom first images
+  const galleryImages = product.images?.length > 0
+    ? product.images
+    : [
+        ...(product.costumeTop?.images?.slice(0, 1) || []),
+        ...(product.costumeBottom?.images?.slice(0, 1) || []),
+      ];
+
+  const isCostume = product.isCostume && product.costumeTop && product.costumeBottom;
+
+  // Savings calculation for costume
+  const costumeSetPrice = Number(product.priceByn);
+  const topPrice = isCostume ? Number(product.costumeTop.priceByn) : 0;
+  const bottomPrice = isCostume ? Number(product.costumeBottom.priceByn) : 0;
+  const sumParts = topPrice + bottomPrice;
+  const savings = sumParts > costumeSetPrice ? sumParts - costumeSetPrice : 0;
+  const savingsPrice = isCostume
+    ? formatPrice(savings, Number(product.costumeTop.priceUsd) + Number(product.costumeBottom.priceUsd) - Number(product.priceUsd), 0, currency)
+    : '';
+
+  const GalleryBlock = ({ images }: { images: string[] }) => (
+    <div>
+      <div
+        className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-[#F5F0EB] mb-4 group"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; touchDeltaX.current = 0; }}
+        onTouchMove={(e) => { touchDeltaX.current = e.touches[0].clientX - touchStartX.current; }}
+        onTouchEnd={() => {
+          const threshold = 50;
+          if (touchDeltaX.current < -threshold && selectedImage < images.length - 1) {
+            setSwipeDir(1); setSelectedImage(selectedImage + 1);
+          } else if (touchDeltaX.current > threshold && selectedImage > 0) {
+            setSwipeDir(-1); setSelectedImage(selectedImage - 1);
+          }
+        }}
+      >
+        <AnimatePresence mode="popLayout" initial={false}>
+          <motion.div
+            key={selectedImage}
+            initial={{ opacity: 0, x: swipeDir * 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -swipeDir * 100 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="absolute inset-0"
+          >
+            {images[selectedImage] ? (
+              <img
+                src={images[selectedImage]}
+                alt={name}
+                onClick={() => setLightboxOpen(true)}
+                className="w-full h-full object-cover cursor-zoom-in"
+                draggable={false}
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-[#C4A882] text-8xl font-display">LS</div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {images.length > 1 && (
+          <>
+            {selectedImage > 0 && (
+              <button
+                onClick={() => { setSwipeDir(-1); setSelectedImage(selectedImage - 1); }}
+                className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
+              >
+                <HiChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            {selectedImage < images.length - 1 && (
+              <button
+                onClick={() => { setSwipeDir(1); setSelectedImage(selectedImage + 1); }}
+                className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
+              >
+                <HiChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </>
+        )}
+
+        {isCostume && (
+          <div className="absolute top-3 left-3">
+            <span className="text-[10px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider bg-[#7C5C9A] text-white">
+              {t('product.costume_label')}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {images.length > 1 && (
+        <div className="relative mt-2">
+          <div ref={thumbsRef} className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+            {images.map((img: string, i: number) => {
+              const active = i === selectedImage;
+              return (
+                <button
+                  key={i}
+                  ref={active ? activeThumbRef : null}
+                  onClick={() => { setSwipeDir(i > selectedImage ? 1 : -1); setSelectedImage(i); }}
+                  className={`relative flex-shrink-0 snap-start rounded-xl overflow-hidden transition-all duration-200 w-16 h-20 md:w-20 md:h-24 ring-inset ${
+                    active ? 'ring-[3px] ring-[#C4A882] shadow-md' : 'opacity-60 hover:opacity-100 ring-1 ring-[#E5E5E3]'
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
+                  {!active && <span className="absolute inset-0 bg-white/20 hover:bg-transparent transition-colors" />}
+                </button>
+              );
+            })}
+          </div>
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#FAFAF8] to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#FAFAF8] to-transparent" />
+        </div>
+      )}
+    </div>
+  );
+
+  const ColorSelector = ({
+    colors,
+    selected,
+    onSelect,
+  }: {
+    colors: string[];
+    selected: string;
+    onSelect: (c: string) => void;
+  }) => (
+    <div className="flex flex-wrap gap-1.5">
+      {colors.map((raw: string) => {
+        let hex = raw, cname = '';
+        try { const p = JSON.parse(raw); hex = p.hex; cname = p.name; } catch {}
+        return (
+          <button
+            key={raw}
+            onClick={() => onSelect(raw)}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border transition-all text-xs ${
+              selected === raw ? 'border-[#C4A882] bg-[#F5F0EB]' : 'border-[#E5E5E3] hover:border-[#C4A882]'
+            }`}
+          >
+            <span className="w-4 h-4 rounded-full border border-[#E5E5E3] flex-shrink-0" style={{ backgroundColor: hex }} />
+            {cname && <span>{cname}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (isCostume) {
+    const top = product.costumeTop;
+    const bottom = product.costumeBottom;
+    const topName = isRu ? top.nameRu : top.nameEn;
+    const bottomName = isRu ? bottom.nameRu : bottom.nameEn;
+    const topPriceFmt = formatPrice(top.priceByn, top.priceUsd, top.priceRub || 0, currency);
+    const bottomPriceFmt = formatPrice(bottom.priceByn, bottom.priceUsd, bottom.priceRub || 0, currency);
+
+    // Piece preview block component
+    const PieceCard = ({
+      piece, pieceName, piecePrice, label,
+    }: { piece: any; pieceName: string; piecePrice: string; label: string }) => (
+      <Link
+        to={`/product/${piece.slug}`}
+        className="flex items-center gap-3 p-3 rounded-2xl border border-[#E5E5E3] bg-white hover:border-[#C4A882] hover:shadow-sm transition-all group"
+      >
+        <div className="relative flex-shrink-0 w-14 h-[4.5rem] rounded-xl overflow-hidden bg-[#F5F0EB]">
+          {piece.images?.[0] ? (
+            <img src={piece.images[0]} alt={pieceName} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          ) : (
+            <span className="absolute inset-0 flex items-center justify-center text-[#C4A882] text-lg font-display">LS</span>
+          )}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-[#7C5C9A] mb-0.5">{label}</p>
+          <p className="font-medium text-sm leading-snug truncate">{pieceName}</p>
+          {piece.sku && <p className="text-[11px] font-mono text-[#6B6B6B] mt-0.5">{piece.sku}</p>}
+          <p className="text-sm font-semibold text-[#1A1A1A] mt-0.5">{piecePrice}</p>
+        </div>
+        <HiChevronRight className="w-4 h-4 text-[#6B6B6B] group-hover:text-[#C4A882] flex-shrink-0 transition-colors" />
+      </Link>
+    );
+
+    return (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <Link to="/catalog" className="inline-flex items-center gap-2 text-sm text-[#6B6B6B] hover:text-[#C4A882] mb-6 transition-colors">
+          <HiArrowLeft className="w-4 h-4" /> {t('product.back')}
+        </Link>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+          <GalleryBlock images={galleryImages} />
+
+          <div>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4 mb-2">
+              <div>
+                {product.category && (
+                  <Link to={`/catalog/${product.category.slug}`} className="text-sm text-[#C4A882] hover:underline">
+                    {isRu ? product.category.nameRu : product.category.nameEn}
+                  </Link>
+                )}
+                <h1 className="font-display text-2xl md:text-3xl font-semibold mt-1">{name}</h1>
+                <div className="flex gap-1.5 mt-2">
+                  <span className="text-[10px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider bg-[#7C5C9A] text-white">
+                    {t('product.costume_label')}
+                  </span>
+                  {product.labels?.filter((l: string) => l !== 'КОСТЮМ' && l !== 'SET').map((label: string) => {
+                    const st = label === 'SALE' ? 'bg-red-500 text-white'
+                      : label === 'HIT' ? 'bg-[#C4A882] text-white'
+                      : label.startsWith('-') ? 'bg-red-500 text-white'
+                      : 'bg-[#1A1A1A] text-white';
+                    return <span key={label} className={`text-[10px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider ${st}`}>{label}</span>;
+                  })}
+                </div>
+              </div>
+              <button
+                onClick={() => toggleItem({ productId: product.id, slug: product.slug, nameRu: product.nameRu, nameEn: product.nameEn, priceByn: Number(product.priceByn), priceUsd: Number(product.priceUsd), image: galleryImages[0] })}
+                className="p-2 hover:text-[#C4A882] transition-colors"
+              >
+                {fav ? <HiHeart className="w-6 h-6 text-[#C4A882]" /> : <HiOutlineHeart className="w-6 h-6" />}
+              </button>
+            </div>
+
+            {/* Set price */}
+            <div className="mb-5">
+              <p className="text-2xl font-semibold">{price}</p>
+              <p className="text-xs text-[#6B6B6B] mt-0.5">{t('product.set_price')}</p>
+              {savings > 0 && (
+                <p className="text-sm text-green-600 font-medium mt-1">
+                  Выгода {savingsPrice} при покупке комплектом
+                </p>
+              )}
+            </div>
+
+            {/* Costume own colors */}
+            {product.colors?.length > 0 && (
+              <div className="mb-5">
+                <p className="text-sm font-medium mb-2">{t('product.color')}</p>
+                <ColorSelector colors={product.colors} selected={selectedColor} onSelect={setSelectedColor} />
+              </div>
+            )}
+
+            {/* Sizes for top and bottom */}
+            <div className="space-y-3 mb-5">
+              {top.sizes?.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-1.5">
+                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{t('product.costume_top')}</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {top.sizes.map((sz: string) => (
+                      <button key={sz} onClick={() => setSelectedTopSize(sz)}
+                        className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${selectedTopSize === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {bottom.sizes?.length > 0 && (
+                <div>
+                  <p className="text-sm font-medium mb-1.5">
+                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{t('product.costume_bottom')}</span>
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {bottom.sizes.map((sz: string) => (
+                      <button key={sz} onClick={() => setSelectedBottomSize(sz)}
+                        className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${selectedBottomSize === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
+                        {sz}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Buy set */}
+            <button
+              onClick={handleAddSetToCart}
+              disabled={!top.inStock || !bottom.inStock}
+              className={`w-full py-3.5 rounded-xl text-sm font-medium transition-colors mb-6 ${
+                addedSet ? 'bg-green-600 text-white'
+                : top.inStock && bottom.inStock ? 'bg-[#7C5C9A] text-white hover:bg-[#6A4E85]'
+                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+              }`}
+            >
+              {addedSet ? t('product.added') + ' ✓'
+                : top.inStock && bottom.inStock ? `${t('product.buy_set')} — ${price}`
+                : t('catalog.out_of_stock')}
+            </button>
+
+            {/* Pieces preview */}
+            <div className="border-t border-[#E5E5E3] pt-5">
+              <p className="text-xs uppercase tracking-[0.2em] text-[#6B6B6B] mb-3">В составе комплекта</p>
+              <div className="space-y-2.5">
+                <PieceCard piece={top} pieceName={topName} piecePrice={topPriceFmt} label={t('product.costume_top')} />
+                <PieceCard piece={bottom} pieceName={bottomName} piecePrice={bottomPriceFmt} label={t('product.costume_bottom')} />
+              </div>
+            </div>
+
+            {/* Description */}
+            {desc && (
+              <div className="mt-6 pt-6 border-t border-[#E5E5E3]">
+                <h3 className="font-medium mb-3">{t('product.description')}</h3>
+                <p className="text-[#6B6B6B] leading-relaxed">{desc}</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <ImageLightbox open={lightboxOpen} images={galleryImages} index={selectedImage} onChange={setSelectedImage} onClose={() => setLightboxOpen(false)} />
+      </div>
+    );
+  }
+
+  // Regular product layout
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <Link to="/catalog" className="inline-flex items-center gap-2 text-sm text-[#6B6B6B] hover:text-[#C4A882] mb-6 transition-colors">
@@ -67,111 +431,7 @@ export default function ProductPage() {
       </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-        {/* Gallery */}
-        <div>
-          <div
-            className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-[#F5F0EB] mb-4 group"
-            onTouchStart={(e) => {
-              touchStartX.current = e.touches[0].clientX;
-              touchDeltaX.current = 0;
-            }}
-            onTouchMove={(e) => {
-              touchDeltaX.current = e.touches[0].clientX - touchStartX.current;
-            }}
-            onTouchEnd={() => {
-              const threshold = 50;
-              if (touchDeltaX.current < -threshold && selectedImage < product.images.length - 1) {
-                setSwipeDir(1);
-                setSelectedImage(selectedImage + 1);
-              } else if (touchDeltaX.current > threshold && selectedImage > 0) {
-                setSwipeDir(-1);
-                setSelectedImage(selectedImage - 1);
-              }
-            }}
-          >
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.div
-                key={selectedImage}
-                initial={{ opacity: 0, x: swipeDir * 100 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -swipeDir * 100 }}
-                transition={{ duration: 0.25, ease: 'easeInOut' }}
-                className="absolute inset-0"
-              >
-                {product.images[selectedImage] ? (
-                  <img
-                    src={product.images[selectedImage]}
-                    alt={name}
-                    onClick={() => setLightboxOpen(true)}
-                    className="w-full h-full object-cover cursor-zoom-in"
-                    draggable={false}
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-[#C4A882] text-8xl font-display">
-                    LS
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Desktop arrows */}
-            {product.images.length > 1 && (
-              <>
-                {selectedImage > 0 && (
-                  <button
-                    onClick={() => { setSwipeDir(-1); setSelectedImage(selectedImage - 1); }}
-                    className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
-                  >
-                    <HiChevronLeft className="w-4 h-4" />
-                  </button>
-                )}
-                {selectedImage < product.images.length - 1 && (
-                  <button
-                    onClick={() => { setSwipeDir(1); setSelectedImage(selectedImage + 1); }}
-                    className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
-                  >
-                    <HiChevronRight className="w-4 h-4" />
-                  </button>
-                )}
-              </>
-            )}
-
-          </div>
-
-          {/* Thumbnail slider (mobile + desktop) */}
-          {product.images.length > 1 && (
-            <div className="relative mt-2">
-              <div
-                ref={thumbsRef}
-                className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory"
-              >
-                {product.images.map((img: string, i: number) => {
-                  const active = i === selectedImage;
-                  return (
-                    <button
-                      key={i}
-                      ref={active ? activeThumbRef : null}
-                      onClick={() => { setSwipeDir(i > selectedImage ? 1 : -1); setSelectedImage(i); }}
-                      className={`relative flex-shrink-0 snap-start rounded-xl overflow-hidden transition-all duration-200 w-16 h-20 md:w-20 md:h-24 ring-inset ${
-                        active
-                          ? 'ring-[3px] ring-[#C4A882] shadow-md'
-                          : 'opacity-60 hover:opacity-100 ring-1 ring-[#E5E5E3]'
-                      }`}
-                    >
-                      <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
-                      {!active && (
-                        <span className="absolute inset-0 bg-white/20 hover:bg-transparent transition-colors" />
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-              {/* Edge fade gradients when scrollable */}
-              <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#FAFAF8] to-transparent" />
-              <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#FAFAF8] to-transparent" />
-            </div>
-          )}
-        </div>
+        <GalleryBlock images={product.images} />
 
         {/* Info */}
         <div>
@@ -262,8 +522,8 @@ export default function ProductPage() {
               <p className="text-sm font-medium mb-2">{t('product.color')}</p>
               <div className="flex flex-wrap gap-2">
                 {product.colors.map((raw: string) => {
-                  let hex = raw, name = '';
-                  try { const p = JSON.parse(raw); hex = p.hex; name = p.name; } catch {}
+                  let hex = raw, cname = '';
+                  try { const p = JSON.parse(raw); hex = p.hex; cname = p.name; } catch {}
                   return (
                     <button
                       key={raw}
@@ -273,7 +533,7 @@ export default function ProductPage() {
                       }`}
                     >
                       <span className="w-5 h-5 rounded-full border border-[#E5E5E3] flex-shrink-0" style={{ backgroundColor: hex }} />
-                      {name && <span className="text-xs">{name}</span>}
+                      {cname && <span className="text-xs">{cname}</span>}
                     </button>
                   );
                 })}

@@ -9,6 +9,8 @@ const labelStyles: Record<string, string> = {
   NEW: 'bg-[#1A1A1A] text-white',
   SALE: 'bg-red-500 text-white',
   HIT: 'bg-[#C4A882] text-white',
+  КОСТЮМ: 'bg-[#7C5C9A] text-white',
+  SET: 'bg-[#7C5C9A] text-white',
 };
 
 function getLabelStyle(label: string): string {
@@ -28,6 +30,7 @@ interface Props {
     isNew?: boolean;
     labels?: string[];
     inStock: boolean;
+    isCostume?: boolean;
   };
 }
 
@@ -42,8 +45,11 @@ export default function ProductCard({ product }: Props) {
   const price = formatPrice(product.priceByn, product.priceUsd, product.priceRub || 0, currency);
   const image = product.images[0];
 
-  // Use labels if available, fallback to isNew
-  const labels = product.labels?.length ? product.labels : (product.isNew ? ['NEW'] : []);
+  const costumeLabel = isRu ? 'КОСТЮМ' : 'SET';
+  const baseLabels = product.labels?.filter(
+    (l) => l !== 'КОСТЮМ' && l !== 'SET' && l !== 'COSTUME'
+  ) ?? (product.isNew ? ['NEW'] : []);
+  const labels = product.isCostume ? [costumeLabel, ...baseLabels] : baseLabels;
 
   return (
     <motion.div
@@ -56,6 +62,8 @@ export default function ProductCard({ product }: Props) {
           <img
             src={image}
             alt={name}
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
