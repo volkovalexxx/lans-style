@@ -1,17 +1,22 @@
 import type { Context, NextFunction } from 'grammy';
+import { getBotSettings } from './settings';
+
+export const TECH_ADMIN = '7506120714';
+
+export function isTechAdmin(chatId: number | undefined): boolean {
+  return String(chatId) === TECH_ADMIN;
+}
 
 export function isAdminChat(chatId: number | undefined): boolean {
   if (!chatId) return false;
-  const raw = process.env.TELEGRAM_ADMIN_IDS || '';
-  const ids = raw.split(',').map((s) => s.trim()).filter(Boolean);
-  if (ids.length === 0) return true; // dev mode: no whitelist -> allow all
-  return ids.includes(String(chatId));
+  const { adminChatIds } = getBotSettings();
+  if (adminChatIds.length === 0) return true; // пока у всех доступ
+  return adminChatIds.includes(String(chatId));
 }
 
 export async function adminOnly(ctx: Context, next: NextFunction) {
-  const chatId = ctx.chat?.id;
-  if (!isAdminChat(chatId)) {
-    await ctx.reply('⛔ Доступ запрещён. Обратитесь к администратору сайта.');
+  if (!isAdminChat(ctx.chat?.id)) {
+    await ctx.reply('⛔ Доступ запрещён.');
     return;
   }
   await next();

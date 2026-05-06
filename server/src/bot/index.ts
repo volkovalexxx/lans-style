@@ -1,6 +1,6 @@
 import { Bot, InlineKeyboard, InputFile, Keyboard, type Context } from 'grammy';
 import { prisma } from '../index';
-import { isAdminChat } from './auth';
+import { isAdminChat, isTechAdmin } from './auth';
 import { getSession, setFlow, updateSession, clearSession } from './session';
 import { formatOrder, formatWholesale, formatProduct, STATUS_LABELS } from './format';
 import { sendPhotoCard, resolveImages, resolveImagePath, downloadTelegramPhoto } from './media';
@@ -8,12 +8,13 @@ import { getBotSettings, saveBotSettings } from './settings';
 
 const PRESET_LABELS = ['NEW', 'SALE', 'HIT', 'TOP', '-10%', '-20%', '-30%', '-50%'];
 
-function mainMenu() {
-  return new Keyboard()
+function mainMenu(chatId?: number) {
+  const kb = new Keyboard()
     .text('📦 Товары').text('📂 Категории').row()
     .text('🛒 Заказы').text('🏢 Опт').row()
-    .text('📊 Статистика').text('❓ Помощь').row()
-    .resized();
+    .text('📊 Статистика').text('❓ Помощь').row();
+  if (isTechAdmin(chatId)) kb.text('⚙️ Настройки').row();
+  return kb.resized();
 }
 
 function transliterate(str: string): string {
@@ -64,7 +65,7 @@ export function startBot() {
           '• управлять товарами и категориями\n' +
           '• смотреть статистику\n\n' +
           'Используйте меню ниже ⬇️',
-        { parse_mode: 'HTML', reply_markup: mainMenu() }
+        { parse_mode: 'HTML', reply_markup: mainMenu(ctx.chat?.id) }
       );
     } else {
       await ctx.reply(
@@ -100,48 +101,75 @@ export function startBot() {
     await ctx.reply(`Ваш chat ID: <code>${ctx.chat!.id}</code>`, { parse_mode: 'HTML' });
   });
 
+  /* ============================================================
+     НАСТРОЙКИ (только тех. специалист 7506120714)
+     ============================================================ */
+
+  function settingsMenu() {
+    return new InlineKeyboard()
+      .text('🛒 Розница', 'cfg:retail').row()
+      .text('🏢 Опт', 'cfg:wholesale').row()
+      .text('💬 Обратная связь', 'cfg:feedback').row()
+      .text('👥 Доступ к боту', 'cfg:access');
+  }
+
+  function fmtIds(ids: string[]): string {
+    return ids.length ? ids.map((id) => `<code>${id}</code>`).join(', ') : '<i>не задано</i>';
+  }
+
+  bot.hears('⚙️ Настройки', async (ctx) => {
+    if (!isTechAdmin(ctx.chat?.id)) return;
+    const s = getBotSettings();
+    await ctx.reply(
+      '⚙️ <b>Настройки уведомлений</b>\n\n' +
+      `🛒 Розница: ${fmtIds(s.retailChatIds)}\n` +
+      `🏢 Опт: ${fmtIds(s.wholesaleChatIds)}\n` +
+      `💬 Обратная связь: ${fmtIds(s.feedbackChatIds)}\n` +
+      `👥 Доступ к боту: ${s.adminChatIds.length ? fmtIds(s.adminChatIds) : '<i>все имеют доступ</i>'}\n\n` +
+      'Выберите раздел для изменения:',
+      { parse_mode: 'HTML', reply_markup: settingsMenu() }
+    );
+  });
+
+  const CFG_LABELS: Record<string, string> = {
+    retail: 'Розница',
+    wholesale: 'Опт',
+    feedback: 'Обратная связь',
+    access: 'Доступ к боту',
+  };
+
+  bot.callbackQuery(/^cfg:(retail|wholesale|feedback|access)$/, async (ctx) => {
+    if (!isTechAdmin(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
+    const key = ctx.match![1];
+    const s = getBotSettings();
+    const fieldMap: Record<string, string[]> = {
+      retail: s.retailChatIds,
+      wholesale: s.wholesaleChatIds,
+      feedback: s.feedbackChatIds,
+      access: s.adminChatIds,
+    };
+    const current = fieldMap[key];
+    const label = CFG_LABELS[key];
+
+    setFlow(ctx.chat!.id, 'cfg_set', { cfgKey: key });
+    await ctx.answerCallbackQuery();
+
+    const hint = key === 'access'
+      ? '\n\n<i>Пусто = доступ у всех. Введите chat ID через запятую чтобы ограничить.</i>'
+      : '\n\n<i>Введите chat ID через запятую. Можно несколько.</i>';
+
+    await ctx.reply(
+      `⚙️ <b>${label}</b>\nТекущие: ${fmtIds(current)}\n\nВведите новые chat ID через запятую (или «-» чтобы очистить):${hint}`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
   bot.command('cancel', async (ctx) => {
     if (!isAdminChat(ctx.chat?.id)) return;
     clearSession(ctx.chat!.id);
-    await ctx.reply('Действие отменено.', { reply_markup: mainMenu() });
+    await ctx.reply('Действие отменено.', { reply_markup: mainMenu(ctx.chat?.id) });
   });
 
-  /* ---------- Notification routing settings ---------- */
-
-  bot.command('setorders', async (ctx) => {
-    if (!isAdminChat(ctx.chat?.id)) return;
-    const settings = getBotSettings();
-    settings.ordersChatId = String(ctx.chat!.id);
-    saveBotSettings(settings);
-    await ctx.reply(
-      `✅ Уведомления о <b>заказах</b> будут приходить в этот чат.\n<code>${ctx.chat!.id}</code>`,
-      { parse_mode: 'HTML' }
-    );
-  });
-
-  bot.command('setwholesale', async (ctx) => {
-    if (!isAdminChat(ctx.chat?.id)) return;
-    const settings = getBotSettings();
-    settings.wholesaleChatId = String(ctx.chat!.id);
-    saveBotSettings(settings);
-    await ctx.reply(
-      `✅ Уведомления об <b>оптовых заявках</b> будут приходить в этот чат.\n<code>${ctx.chat!.id}</code>`,
-      { parse_mode: 'HTML' }
-    );
-  });
-
-  bot.command('showsettings', async (ctx) => {
-    if (!isAdminChat(ctx.chat?.id)) return;
-    const settings = getBotSettings();
-    const fallback = process.env.TELEGRAM_ADMIN_IDS || process.env.TELEGRAM_CHAT_ID || '(не задан)';
-    await ctx.reply(
-      `⚙️ <b>Настройки уведомлений</b>\n\n` +
-      `🛒 Заказы: <code>${settings.ordersChatId || `${fallback} (из env)`}</code>\n` +
-      `🏢 Опт: <code>${settings.wholesaleChatId || `${fallback} (из env)`}</code>\n\n` +
-      `Текущий чат: <code>${ctx.chat!.id}</code>`,
-      { parse_mode: 'HTML' }
-    );
-  });
 
   /* ---------- STATS ---------- */
 
@@ -974,6 +1002,30 @@ export function startBot() {
     if (text.startsWith('/')) return;
 
     const chatId = ctx.chat!.id;
+
+    /* --- cfg_set (тех. специалист меняет настройки) --- */
+    if (isTechAdmin(chatId) && getSession(chatId).flow === 'cfg_set') {
+      const { cfgKey } = getSession(chatId).data || {};
+      clearSession(chatId);
+      const ids = text === '-' ? [] : text.split(',').map((s) => s.trim()).filter(Boolean);
+      const fieldMap: Record<string, keyof import('./settings').BotSettings> = {
+        retail: 'retailChatIds',
+        wholesale: 'wholesaleChatIds',
+        feedback: 'feedbackChatIds',
+        access: 'adminChatIds',
+      };
+      const field = fieldMap[cfgKey];
+      if (field) {
+        saveBotSettings({ [field]: ids });
+        const s = getBotSettings();
+        await ctx.reply(
+          `✅ <b>${CFG_LABELS[cfgKey]}</b> обновлено.\nТекущие: ${ids.length ? ids.map((id) => `<code>${id}</code>`).join(', ') : '<i>все имеют доступ</i>'}\n\n` +
+          `🛒 Розница: ${fmtIds(s.retailChatIds)}\n🏢 Опт: ${fmtIds(s.wholesaleChatIds)}\n💬 Обратная связь: ${fmtIds(s.feedbackChatIds)}\n👥 Доступ: ${s.adminChatIds.length ? fmtIds(s.adminChatIds) : '<i>все</i>'}`,
+          { parse_mode: 'HTML', reply_markup: mainMenu(chatId) }
+        );
+      }
+      return;
+    }
 
     // Non-admin users: friendly response
     if (!isAdminChat(chatId)) {

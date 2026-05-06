@@ -59,7 +59,7 @@ export async function sendWholesaleNotification(request: {
   try {
     await transporter.sendMail({
       from: process.env.EMAIL_FROM || 'noreply@lans-style.by',
-      to: process.env.ORDER_EMAIL || 'orders@lans-style.by',
+      to: 'Lansstil2007@gmail.com',
       subject: `Оптовая заявка #${request.id} — Lans Style`,
       text,
     });

@@ -12,22 +12,7 @@ export function getBot(): Bot | null {
   return bot;
 }
 
-function getFallbackIds(): string[] {
-  const raw = process.env.TELEGRAM_ADMIN_IDS || process.env.TELEGRAM_CHAT_ID || '';
-  return raw.split(',').map((s) => s.trim()).filter(Boolean);
-}
-
-function getOrdersChatIds(): string[] {
-  const settings = getBotSettings();
-  if (settings.ordersChatId) return [settings.ordersChatId];
-  return getFallbackIds();
-}
-
-function getWholesaleChatIds(): string[] {
-  const settings = getBotSettings();
-  if (settings.wholesaleChatId) return [settings.wholesaleChatId];
-  return getFallbackIds();
-}
+const WHOLESALE_FALLBACK_ID = '1095049641'; // fallback если 213790330 недоступен
 
 export async function notifyNewOrder(order: {
   id: number;
@@ -45,8 +30,9 @@ export async function notifyNewOrder(order: {
   }>;
 }) {
   const b = getBot();
-  const ids = getOrdersChatIds();
-  if (!b || !ids.length) return;
+  const { retailChatIds } = getBotSettings();
+  const ids = retailChatIds.length ? retailChatIds : ['7506120714'];
+  if (!b) return;
 
   const seen = new Set<string>();
   const uniquePhotoUrls: string[] = [];
@@ -86,8 +72,7 @@ export async function notifyNewWholesale(req: {
   createdAt: Date | string;
 }) {
   const b = getBot();
-  const ids = getWholesaleChatIds();
-  if (!b || !ids.length) return;
+  if (!b) return;
 
   const text = '🔔 <b>НОВАЯ ОПТОВАЯ ЗАЯВКА</b>\n\n' + formatWholesale(req);
   const kb = new InlineKeyboard()
@@ -95,11 +80,21 @@ export async function notifyNewWholesale(req: {
     .text('✅ Выполнена', `ws:status:${req.id}:done`).row()
     .text('❌ Отменить', `ws:status:${req.id}:cancelled`);
 
-  for (const chatId of ids) {
+  const { wholesaleChatIds } = getBotSettings();
+  const recipients = wholesaleChatIds.length ? wholesaleChatIds : ['7506120714', '213790330'];
+
+  for (const chatId of recipients) {
     try {
       await b.api.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: kb });
     } catch (err) {
-      console.error(`Telegram send error to ${chatId}:`, err);
+      console.error(`Telegram wholesale send error to ${chatId}:`, err);
+      if (chatId === '213790330') {
+        try {
+          await b.api.sendMessage(WHOLESALE_FALLBACK_ID, text, { parse_mode: 'HTML', reply_markup: kb });
+        } catch (fe) {
+          console.error(`Telegram wholesale fallback error:`, fe);
+        }
+      }
     }
   }
 }
