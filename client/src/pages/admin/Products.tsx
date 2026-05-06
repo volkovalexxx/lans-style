@@ -754,7 +754,7 @@ export default function AdminProducts() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between mt-5">
+        <div className="flex flex-col items-center gap-2 mt-5">
           <p className="text-sm text-[#6B6B6B]">Стр. {page} из {totalPages}</p>
           <div className="flex items-center gap-1">
             <button
@@ -764,12 +764,12 @@ export default function AdminProducts() {
             >
               <HiChevronLeft className="w-4 h-4" />
             </button>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+            {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
               let n: number;
-              if (totalPages <= 7) n = i + 1;
-              else if (page <= 4) n = i + 1;
-              else if (page >= totalPages - 3) n = totalPages - 6 + i;
-              else n = page - 3 + i;
+              if (totalPages <= 5) n = i + 1;
+              else if (page <= 3) n = i + 1;
+              else if (page >= totalPages - 2) n = totalPages - 4 + i;
+              else n = page - 2 + i;
               return (
                 <button
                   key={n}
