@@ -18,6 +18,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
 import AdminCategories from './pages/admin/Categories';
 import AdminOrders from './pages/admin/Orders';
+import NotFound from './pages/NotFound';
 
 export default function App() {
   return (
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/search" element={<Search />} />
         <Route path="/order-success" element={<OrderSuccess />} />
       </Route>
+      <Route path="*" element={<NotFound />} />
       <Route path="/lansadmin/login" element={<AdminLogin />} />
       <Route path="/lansadmin" element={<AdminDashboard />} />
       <Route path="/lansadmin/products" element={<AdminProducts />} />
