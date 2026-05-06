@@ -96,6 +96,10 @@ export function startBot() {
     );
   });
 
+  bot.command('myid', async (ctx) => {
+    await ctx.reply(`Ваш chat ID: <code>${ctx.chat!.id}</code>`, { parse_mode: 'HTML' });
+  });
+
   bot.command('cancel', async (ctx) => {
     if (!isAdminChat(ctx.chat?.id)) return;
     clearSession(ctx.chat!.id);
