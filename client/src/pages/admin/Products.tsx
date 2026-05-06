@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import api from '../../api/client';
 import { AdminLayout } from './Dashboard';
 import ColorPalette, { type ColorItem } from '../../components/admin/ColorPalette';
@@ -112,6 +112,7 @@ export default function AdminProducts() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [editing, setEditing] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const editFormRef = useRef<HTMLFormElement>(null);
 
   // Filters / sort / pagination
   const [search, setSearch] = useState('');
@@ -237,6 +238,7 @@ export default function AdminProducts() {
     setCreatingCategory(false);
     setNewCategoryRu('');
     setNewCategoryEn('');
+    setTimeout(() => editFormRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   };
 
   const cancelEdit = () => {
@@ -391,7 +393,7 @@ export default function AdminProducts() {
 
       {/* Edit form */}
       {editing && (
-        <form onSubmit={handleSave} className="bg-white p-4 sm:p-6 rounded-2xl mb-6 space-y-5 border border-[#E5E5E3]">
+        <form ref={editFormRef} onSubmit={handleSave} className="bg-white p-4 sm:p-6 rounded-2xl mb-6 space-y-5 border border-[#E5E5E3]">
           <h3 className="font-medium text-lg">{editing.id ? 'Редактировать товар' : 'Новый товар'}</h3>
 
           <div>
