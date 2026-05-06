@@ -108,14 +108,44 @@ export { AdminLayout };
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
+  const [maintenance, setMaintenance] = useState<boolean | null>(null);
+  const [maintenanceSaving, setMaintenanceSaving] = useState(false);
 
   useEffect(() => {
     api.get('/admin/stats').then((r) => setStats(r.data)).catch(() => {});
+    api.get('/settings').then((r) => setMaintenance(r.data.maintenanceMode)).catch(() => {});
   }, []);
+
+  const toggleMaintenance = async () => {
+    setMaintenanceSaving(true);
+    try {
+      const { data } = await api.put('/settings', { maintenanceMode: !maintenance });
+      setMaintenance(data.maintenanceMode);
+    } finally {
+      setMaintenanceSaving(false);
+    }
+  };
 
   return (
     <AdminLayout>
       <h1 className="text-xl sm:text-2xl font-semibold mb-6 sm:mb-8">Панель управления</h1>
+
+      {/* Maintenance mode toggle */}
+      <div className={`flex items-center justify-between p-4 sm:p-5 rounded-2xl border mb-6 ${maintenance ? 'bg-amber-50 border-amber-200' : 'bg-white border-[#E5E5E3]'}`}>
+        <div>
+          <p className="font-medium text-sm">Режим технических работ</p>
+          <p className="text-xs text-[#6B6B6B] mt-0.5">
+            {maintenance ? 'Главная страница скрыта — показывается заглушка' : 'Сайт работает в штатном режиме'}
+          </p>
+        </div>
+        <button
+          onClick={toggleMaintenance}
+          disabled={maintenanceSaving || maintenance === null}
+          className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${maintenance ? 'bg-amber-500' : 'bg-[#E5E5E3]'} disabled:opacity-50`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${maintenance ? 'translate-x-6' : ''}`} />
+        </button>
+      </div>
 
       {stats && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6 sm:mb-8">

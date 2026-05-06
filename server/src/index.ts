@@ -11,6 +11,7 @@ import wholesaleRouter from './routes/wholesale';
 import adminRouter from './routes/admin';
 import uploadRouter from './routes/upload';
 import pagesRouter from './routes/pages';
+import settingsRouter from './routes/settings';
 import { startBot } from './bot';
 
 export const prisma = new PrismaClient();
@@ -30,6 +31,7 @@ app.use('/api/wholesale', wholesaleRouter);
 app.use('/api/admin', adminRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/pages', pagesRouter);
+app.use('/api/settings', settingsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
