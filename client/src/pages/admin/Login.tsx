@@ -14,7 +14,7 @@ export default function AdminLogin() {
     try {
       const res = await api.post('/admin/login', { login, password });
       localStorage.setItem('admin_token', res.data.token);
-      navigate('/admin');
+      navigate('/lansadmin');
     } catch {
       setError('Неверный логин или пароль');
     }

@@ -13,10 +13,10 @@ interface Stats {
 }
 
 const navItems = [
-  { to: '/admin', label: 'Главная' },
-  { to: '/admin/products', label: 'Товары' },
-  { to: '/admin/categories', label: 'Категории' },
-  { to: '/admin/orders', label: 'Заказы' },
+  { to: '/lansadmin', label: 'Главная' },
+  { to: '/lansadmin/products', label: 'Товары' },
+  { to: '/lansadmin/categories', label: 'Категории' },
+  { to: '/lansadmin/orders', label: 'Заказы' },
 ];
 
 function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
   const [mobileNav, setMobileNav] = useState(false);
 
   useEffect(() => {
-    api.get('/admin/me').catch(() => navigate('/admin/login'));
+    api.get('/admin/me').catch(() => navigate('/lansadmin/login'));
   }, [navigate]);
 
   useEffect(() => { setMobileNav(false); }, [location.pathname]);
@@ -34,7 +34,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-[#FAFAF8]">
       <header className="bg-white border-b border-[#E5E5E3] px-4 sm:px-6 py-3 sm:py-4 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link to="/admin" className="font-display text-lg sm:text-xl font-semibold">
+          <Link to="/lansadmin" className="font-display text-lg sm:text-xl font-semibold">
             Lans Style
           </Link>
 
@@ -58,7 +58,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
               На сайт
             </Link>
             <button
-              onClick={() => { localStorage.removeItem('admin_token'); navigate('/admin/login'); }}
+              onClick={() => { localStorage.removeItem('admin_token'); navigate('/lansadmin/login'); }}
               className="px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors"
             >
               Выход
@@ -91,7 +91,7 @@ function AdminLayout({ children }: { children: React.ReactNode }) {
               На сайт
             </Link>
             <button
-              onClick={() => { localStorage.removeItem('admin_token'); navigate('/admin/login'); }}
+              onClick={() => { localStorage.removeItem('admin_token'); navigate('/lansadmin/login'); }}
               className="block w-full text-left px-3 py-2.5 rounded-lg text-sm text-red-500"
             >
               Выход
@@ -135,9 +135,9 @@ export default function AdminDashboard() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         {[
-          { to: '/admin/products', title: 'Управление товарами', desc: 'Добавление, редактирование, удаление' },
-          { to: '/admin/categories', title: 'Категории', desc: 'Управление категориями каталога' },
-          { to: '/admin/orders', title: 'Заказы и заявки', desc: 'Просмотр заказов и оптовых заявок' },
+          { to: '/lansadmin/products', title: 'Управление товарами', desc: 'Добавление, редактирование, удаление' },
+          { to: '/lansadmin/categories', title: 'Категории', desc: 'Управление категориями каталога' },
+          { to: '/lansadmin/orders', title: 'Заказы и заявки', desc: 'Просмотр заказов и оптовых заявок' },
         ].map((card) => (
           <Link key={card.to} to={card.to} className="bg-white p-5 sm:p-6 rounded-2xl border border-[#E5E5E3] hover:border-[#C4A882] transition-colors">
             <h3 className="font-medium mb-1">{card.title}</h3>

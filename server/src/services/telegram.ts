@@ -1,6 +1,7 @@
 import { Bot, InlineKeyboard } from 'grammy';
 import { formatOrder, formatWholesale } from '../bot/format';
 import { sendPhotoCardTo, resolveImages } from '../bot/media';
+import { getBotSettings } from '../bot/settings';
 
 let bot: Bot | null = null;
 
@@ -11,9 +12,21 @@ export function getBot(): Bot | null {
   return bot;
 }
 
-function getChatIds(): string[] {
+function getFallbackIds(): string[] {
   const raw = process.env.TELEGRAM_ADMIN_IDS || process.env.TELEGRAM_CHAT_ID || '';
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
+}
+
+function getOrdersChatIds(): string[] {
+  const settings = getBotSettings();
+  if (settings.ordersChatId) return [settings.ordersChatId];
+  return getFallbackIds();
+}
+
+function getWholesaleChatIds(): string[] {
+  const settings = getBotSettings();
+  if (settings.wholesaleChatId) return [settings.wholesaleChatId];
+  return getFallbackIds();
 }
 
 export async function notifyNewOrder(order: {
@@ -32,10 +45,9 @@ export async function notifyNewOrder(order: {
   }>;
 }) {
   const b = getBot();
-  const ids = getChatIds();
+  const ids = getOrdersChatIds();
   if (!b || !ids.length) return;
 
-  // 1 first photo per UNIQUE product in the order, up to 10 photos (Telegram limit)
   const seen = new Set<string>();
   const uniquePhotoUrls: string[] = [];
   for (const item of order.items) {
@@ -74,7 +86,7 @@ export async function notifyNewWholesale(req: {
   createdAt: Date | string;
 }) {
   const b = getBot();
-  const ids = getChatIds();
+  const ids = getWholesaleChatIds();
   if (!b || !ids.length) return;
 
   const text = '🔔 <b>НОВАЯ ОПТОВАЯ ЗАЯВКА</b>\n\n' + formatWholesale(req);
@@ -92,10 +104,9 @@ export async function notifyNewWholesale(req: {
   }
 }
 
-// Legacy helper kept for any existing callers
 export async function sendTelegramNotification(message: string) {
   const b = getBot();
-  const ids = getChatIds();
+  const ids = getFallbackIds();
   if (!b || !ids.length) return;
   for (const chatId of ids) {
     try {

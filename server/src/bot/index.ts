@@ -1,9 +1,10 @@
-import { Bot, InlineKeyboard, Keyboard, type Context } from 'grammy';
+import { Bot, InlineKeyboard, InputFile, Keyboard, type Context } from 'grammy';
 import { prisma } from '../index';
-import { adminOnly } from './auth';
+import { isAdminChat } from './auth';
 import { getSession, setFlow, updateSession, clearSession } from './session';
 import { formatOrder, formatWholesale, formatProduct, STATUS_LABELS } from './format';
-import { sendPhotoCard, resolveImages, downloadTelegramPhoto } from './media';
+import { sendPhotoCard, resolveImages, resolveImagePath, downloadTelegramPhoto } from './media';
+import { getBotSettings, saveBotSettings } from './settings';
 
 const PRESET_LABELS = ['NEW', 'SALE', 'HIT', 'TOP', '-10%', '-20%', '-30%', '-50%'];
 
@@ -48,42 +49,100 @@ export function startBot() {
 
   const bot = new Bot(token);
 
-  bot.use(adminOnly);
   bot.catch((err) => console.error('Bot error:', err));
 
-  /* ---------- /start, help, main menu ---------- */
+  /* ---------- /start — public for all users ---------- */
 
   bot.command('start', async (ctx) => {
     clearSession(ctx.chat!.id);
+    if (isAdminChat(ctx.chat?.id)) {
+      await ctx.reply(
+        '👗 <b>Lans Style — Панель управления</b>\n\n' +
+          'Через бота вы можете:\n' +
+          '• просматривать заказы и оптовые заявки\n' +
+          '• менять их статусы\n' +
+          '• управлять товарами и категориями\n' +
+          '• смотреть статистику\n\n' +
+          'Используйте меню ниже ⬇️',
+        { parse_mode: 'HTML', reply_markup: mainMenu() }
+      );
+    } else {
+      await ctx.reply(
+        '👗 <b>Lans Style</b>\n\n' +
+          'Привет! Это официальный бот магазина <b>Lans Style</b> — белорусский бренд женской одежды.\n\n' +
+          '🌐 Наш сайт: lans-style.by\n' +
+          '📞 По вопросам заказов и оптовых заявок пишите нам или оформляйте заказ на сайте.\n\n' +
+          'Мы ответим в ближайшее время! ✨',
+        { parse_mode: 'HTML' }
+      );
+    }
+  });
+
+  /* ---------- Admin-only: help ---------- */
+
+  bot.hears('❓ Помощь', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     await ctx.reply(
-      '👗 <b>Lans Style — Админ-бот</b>\n\n' +
-        'Через бота вы можете:\n' +
-        '• просматривать заказы и оптовые заявки\n' +
-        '• менять их статусы\n' +
-        '• управлять товарами и категориями\n' +
-        '• смотреть статистику\n\n' +
-        'Используйте меню ниже ⬇️',
-      { parse_mode: 'HTML', reply_markup: mainMenu() }
+      'Главное меню — кнопки внизу экрана.\n\n' +
+      '<b>Заказы / Опт</b> — вкладки по статусу, смена статуса, удаление отменённых.\n' +
+      '<b>Категории</b> — список, добавление, удаление.\n' +
+      '<b>Товары</b> — поиск, просмотр, добавление с выбором цветов из уже созданных.\n\n' +
+      '<b>Настройки уведомлений:</b>\n' +
+      '/setorders — направить уведомления о заказах в этот чат\n' +
+      '/setwholesale — направить уведомления об оптовых заявках в этот чат\n' +
+      '/showsettings — показать текущие настройки\n\n' +
+      '/cancel — прервать текущее действие.',
+      { parse_mode: 'HTML' }
     );
   });
 
-  bot.hears('❓ Помощь', (ctx) => ctx.reply(
-    'Главное меню — кнопки внизу экрана.\n\n' +
-    '<b>Заказы / Опт</b> — вкладки по статусу, смена статуса, удаление отменённых.\n' +
-    '<b>Категории</b> — список, добавление, удаление.\n' +
-    '<b>Товары</b> — поиск, просмотр, добавление с выбором цветов из уже созданных. Новый глобальный цвет нужно добавлять через админ-панель сайта.\n\n' +
-    '/cancel — прервать текущее действие.',
-    { parse_mode: 'HTML' }
-  ));
-
   bot.command('cancel', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     clearSession(ctx.chat!.id);
     await ctx.reply('Действие отменено.', { reply_markup: mainMenu() });
+  });
+
+  /* ---------- Notification routing settings ---------- */
+
+  bot.command('setorders', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+    const settings = getBotSettings();
+    settings.ordersChatId = String(ctx.chat!.id);
+    saveBotSettings(settings);
+    await ctx.reply(
+      `✅ Уведомления о <b>заказах</b> будут приходить в этот чат.\n<code>${ctx.chat!.id}</code>`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
+  bot.command('setwholesale', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+    const settings = getBotSettings();
+    settings.wholesaleChatId = String(ctx.chat!.id);
+    saveBotSettings(settings);
+    await ctx.reply(
+      `✅ Уведомления об <b>оптовых заявках</b> будут приходить в этот чат.\n<code>${ctx.chat!.id}</code>`,
+      { parse_mode: 'HTML' }
+    );
+  });
+
+  bot.command('showsettings', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+    const settings = getBotSettings();
+    const fallback = process.env.TELEGRAM_ADMIN_IDS || process.env.TELEGRAM_CHAT_ID || '(не задан)';
+    await ctx.reply(
+      `⚙️ <b>Настройки уведомлений</b>\n\n` +
+      `🛒 Заказы: <code>${settings.ordersChatId || `${fallback} (из env)`}</code>\n` +
+      `🏢 Опт: <code>${settings.wholesaleChatId || `${fallback} (из env)`}</code>\n\n` +
+      `Текущий чат: <code>${ctx.chat!.id}</code>`,
+      { parse_mode: 'HTML' }
+    );
   });
 
   /* ---------- STATS ---------- */
 
   bot.hears('📊 Статистика', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     const [products, cats, ordersByStatus, wsByStatus, totalOrders, totalWs] = await Promise.all([
       prisma.product.count(),
       prisma.category.count(),
@@ -116,7 +175,10 @@ export function startBot() {
      ORDERS
      ============================================================ */
 
-  bot.hears('🛒 Заказы', (ctx) => sendOrdersTabs(ctx));
+  bot.hears('🛒 Заказы', (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+    return sendOrdersTabs(ctx);
+  });
 
   async function sendOrdersTabs(ctx: Context, status = 'new') {
     const counts = await prisma.order.groupBy({ by: ['status'], _count: true });
@@ -158,11 +220,13 @@ export function startBot() {
   }
 
   bot.callbackQuery(/^orders:list:(new|processing|done|cancelled)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     await ctx.answerCallbackQuery();
     await sendOrdersTabs(ctx, ctx.match![1]);
   });
 
   bot.callbackQuery(/^order:status:(\d+):(\w+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const status = ctx.match![2];
     await prisma.order.update({ where: { id }, data: { status } });
@@ -175,14 +239,15 @@ export function startBot() {
         parse_mode: 'HTML', reply_markup: orderActionsKb(id, status),
       });
     }
-    await ctx.answerCallbackQuery({ text: `Статус → ${STATUS_LABELS[status]}` });
+    await ctx.answerCallbackQuery({ text: `Статус -> ${STATUS_LABELS[status]}` });
   });
 
   bot.callbackQuery(/^order:delete:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await prisma.orderItem.deleteMany({ where: { orderId: id } });
     await prisma.order.delete({ where: { id } });
-    await ctx.editMessageText(`🗑 Заказ #${id} удалён`);
+    await ctx.editMessageText(`Заказ #${id} удалён`);
     await ctx.answerCallbackQuery({ text: 'Удалён' });
   });
 
@@ -190,7 +255,10 @@ export function startBot() {
      WHOLESALE
      ============================================================ */
 
-  bot.hears('🏢 Опт', (ctx) => sendWholesaleTabs(ctx));
+  bot.hears('🏢 Опт', (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+    return sendWholesaleTabs(ctx);
+  });
 
   async function sendWholesaleTabs(ctx: Context, status = 'new') {
     const counts = await prisma.wholesaleRequest.groupBy({ by: ['status'], _count: true });
@@ -230,11 +298,13 @@ export function startBot() {
   }
 
   bot.callbackQuery(/^ws:list:(new|processing|done|cancelled)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     await ctx.answerCallbackQuery();
     await sendWholesaleTabs(ctx, ctx.match![1]);
   });
 
   bot.callbackQuery(/^ws:status:(\d+):(\w+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const status = ctx.match![2];
     await prisma.wholesaleRequest.update({ where: { id }, data: { status } });
@@ -244,13 +314,14 @@ export function startBot() {
         parse_mode: 'HTML', reply_markup: wsActionsKb(id, status),
       });
     }
-    await ctx.answerCallbackQuery({ text: `Статус → ${STATUS_LABELS[status]}` });
+    await ctx.answerCallbackQuery({ text: `Статус -> ${STATUS_LABELS[status]}` });
   });
 
   bot.callbackQuery(/^ws:delete:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await prisma.wholesaleRequest.delete({ where: { id } });
-    await ctx.editMessageText(`🗑 Заявка #${id} удалена`);
+    await ctx.editMessageText(`Заявка #${id} удалена`);
     await ctx.answerCallbackQuery({ text: 'Удалена' });
   });
 
@@ -259,6 +330,7 @@ export function startBot() {
      ============================================================ */
 
   bot.hears('📂 Категории', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     const cats = await prisma.category.findMany({
       orderBy: { id: 'asc' },
       include: { _count: { select: { products: true } } },
@@ -267,18 +339,20 @@ export function startBot() {
       ? `📂 <b>Категории (${cats.length})</b>\n\n` +
         cats.map((c) => `• <b>${c.nameRu}</b> · ${c._count.products} товаров`).join('\n')
       : '📂 Категорий пока нет';
-    const kb = new InlineKeyboard().text('➕ Добавить категорию', 'cat:add');
-    for (const c of cats) kb.row().text(`🗑 ${c.nameRu}`, `cat:del:${c.id}`);
+    const kb = new InlineKeyboard().text('Добавить категорию', 'cat:add');
+    for (const c of cats) kb.row().text(`Удалить: ${c.nameRu}`, `cat:del:${c.id}`);
     await ctx.reply(text, { parse_mode: 'HTML', reply_markup: kb });
   });
 
   bot.callbackQuery('cat:add', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     setFlow(ctx.chat!.id, 'add_category');
     await ctx.answerCallbackQuery();
-    await ctx.reply('📝 Введите название категории на <b>русском</b> (или /cancel):', { parse_mode: 'HTML' });
+    await ctx.reply('Введите название категории на <b>русском</b> (или /cancel):', { parse_mode: 'HTML' });
   });
 
   bot.callbackQuery(/^cat:del:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const cat = await prisma.category.findUnique({
       where: { id },
@@ -286,16 +360,17 @@ export function startBot() {
     });
     if (!cat) { await ctx.answerCallbackQuery({ text: 'Не найдено' }); return; }
     const kb = new InlineKeyboard()
-      .text('🗑 Да, удалить', `cat:delconfirm:${id}`)
+      .text('Да, удалить', `cat:delconfirm:${id}`)
       .text('Отмена', 'noop');
     await ctx.answerCallbackQuery();
     await ctx.reply(
-      `⚠️ Удалить категорию «${cat.nameRu}»?\nВместе с ней будут удалены ${cat._count.products} товаров и связанные позиции в заказах.`,
+      `Удалить категорию «${cat.nameRu}»?\nВместе с ней будут удалены ${cat._count.products} товаров.`,
       { reply_markup: kb }
     );
   });
 
   bot.callbackQuery(/^cat:delconfirm:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await prisma.$transaction(async (tx) => {
       const products = await tx.product.findMany({ where: { categoryId: id }, select: { id: true } });
@@ -307,7 +382,7 @@ export function startBot() {
       await tx.category.delete({ where: { id } });
     });
     await ctx.answerCallbackQuery({ text: 'Удалено' });
-    await ctx.editMessageText('🗑 Категория удалена');
+    await ctx.editMessageText('Категория удалена');
   });
 
   bot.callbackQuery('noop', async (ctx) => {
@@ -320,27 +395,30 @@ export function startBot() {
      ============================================================ */
 
   bot.hears('📦 Товары', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     const kb = new InlineKeyboard()
-      .text('🔍 Поиск', 'prod:search').row()
-      .text('📂 По категориям', 'prod:bycats').row()
-      .text('📋 Последние', 'prod:list').row()
-      .text('➕ Добавить товар', 'prod:add');
+      .text('Поиск', 'prod:search').row()
+      .text('По категориям', 'prod:bycats').row()
+      .text('Последние', 'prod:list').row()
+      .text('Добавить товар', 'prod:add');
     await ctx.reply('📦 <b>Товары</b>\nВыберите действие:', { parse_mode: 'HTML', reply_markup: kb });
   });
 
   bot.callbackQuery('prod:list', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     await ctx.answerCallbackQuery();
     await listProductsAsButtons(ctx, {}, '📋 <b>Последние товары</b>');
   });
 
   bot.callbackQuery('prod:search', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     setFlow(ctx.chat!.id, 'search_products');
     await ctx.answerCallbackQuery();
-    await ctx.reply('🔍 Введите название или артикул для поиска:');
+    await ctx.reply('Введите название или артикул для поиска:');
   });
 
-  // Categories → list categories as buttons → click sends product buttons for that category
   bot.callbackQuery('prod:bycats', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const cats = await prisma.category.findMany({
       orderBy: { id: 'asc' },
       include: { _count: { select: { products: true } } },
@@ -355,44 +433,70 @@ export function startBot() {
       kb.text(`${c.nameRu} · ${c._count.products}`, `prod:incat:${c.id}`).row();
     }
     await ctx.answerCallbackQuery();
-    await ctx.reply('📂 <b>Выберите категорию</b>', { parse_mode: 'HTML', reply_markup: kb });
+    await ctx.reply('Выберите категорию:', { reply_markup: kb });
   });
 
   bot.callbackQuery(/^prod:incat:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const categoryId = Number(ctx.match![1]);
     const cat = await prisma.category.findUnique({ where: { id: categoryId } });
     await ctx.answerCallbackQuery();
     await listProductsAsButtons(ctx, { categoryId }, `📂 <b>${cat?.nameRu || 'Категория'}</b>`);
   });
 
-  function productCardKb(p: { id: number; inStock: boolean }) {
-    return new InlineKeyboard()
-      .text('✏️ Редактировать', `prod:edit:${p.id}`).row()
-      .text(p.inStock ? '❌ Нет в наличии' : '✅ В наличии', `prod:stock:${p.id}`)
-      .text('🗑 Удалить', `prod:del:${p.id}`);
+  /* product card keyboard with photo navigation */
+  function productCardKb(p: { id: number; inStock: boolean }, photoIndex: number, totalPhotos: number) {
+    const kb = new InlineKeyboard()
+      .text('Редактировать', `prod:edit:${p.id}`).row();
+
+    if (totalPhotos > 1) {
+      if (photoIndex > 0) kb.text('< Пред.', `prod:photo:${p.id}:${photoIndex - 1}`);
+      kb.text(`${photoIndex + 1}/${totalPhotos}`, 'noop');
+      if (photoIndex < totalPhotos - 1) kb.text('Следующее фото >', `prod:photo:${p.id}:${photoIndex + 1}`);
+      kb.row();
+    }
+
+    kb.text(p.inStock ? 'Нет в наличии' : 'В наличии', `prod:stock:${p.id}`)
+      .text('Удалить', `prod:del:${p.id}`);
+
+    return kb;
   }
 
   function productEditKb(id: number) {
     return new InlineKeyboard()
-      .text('📝 Название RU', `pedit:field:${id}:nameRu`)
-      .text('📝 Название EN', `pedit:field:${id}:nameEn`).row()
-      .text('💰 Цены', `pedit:field:${id}:prices`)
-      .text('📏 Размеры', `pedit:field:${id}:sizes`).row()
-      .text('🏷 Артикул', `pedit:field:${id}:sku`)
-      .text('📂 Категория', `pedit:cat:${id}`).row()
-      .text('🎨 Цвета', `pedit:colors:${id}`)
-      .text('🏷 Метки', `pedit:labels:${id}`).row()
-      .text('◀️ Назад к карточке', `prod:view:${id}`);
+      .text('Название RU', `pedit:field:${id}:nameRu`)
+      .text('Название EN', `pedit:field:${id}:nameEn`).row()
+      .text('Цены', `pedit:field:${id}:prices`)
+      .text('Размеры', `pedit:field:${id}:sizes`).row()
+      .text('Артикул', `pedit:field:${id}:sku`)
+      .text('Категория', `pedit:cat:${id}`).row()
+      .text('Цвета', `pedit:colors:${id}`)
+      .text('Метки', `pedit:labels:${id}`).row()
+      .text('Назад к карточке', `prod:view:${p => p}:${id}`);
   }
 
-  async function sendProductCard(ctx: Context, id: number) {
+  async function sendProductCard(ctx: Context, id: number, photoIndex = 0) {
     const p = await prisma.product.findUnique({
       where: { id },
       include: { category: true, costumeTop: true, costumeBottom: true },
     });
     if (!p) { await ctx.reply('Товар не найден'); return; }
+
     const paths = resolveImages(p.images, 10);
-    await sendPhotoCard(ctx, paths, formatProduct(p), { keyboard: productCardKb(p) });
+    const caption = formatProduct(p);
+
+    if (paths.length === 0) {
+      await ctx.reply(caption, { parse_mode: 'HTML', reply_markup: productCardKb(p, 0, 0) });
+      return;
+    }
+
+    const safeIndex = Math.min(photoIndex, paths.length - 1);
+    const kb = productCardKb(p, safeIndex, paths.length);
+
+    await ctx.replyWithChatAction('upload_photo').catch(() => {});
+    await ctx.replyWithPhoto(new InputFile(paths[safeIndex]), {
+      caption, parse_mode: 'HTML', reply_markup: kb,
+    });
   }
 
   async function listProductsAsButtons(ctx: Context, where: any, title: string) {
@@ -406,32 +510,42 @@ export function startBot() {
     const kb = new InlineKeyboard();
     for (const p of products) {
       const label = p.sku ? `${p.nameRu} · ${p.sku}` : p.nameRu;
-      // Telegram button text limit ~64 chars
-      const safe = label.length > 60 ? label.slice(0, 57) + '…' : label;
+      const safe = label.length > 60 ? label.slice(0, 57) + '...' : label;
       kb.text(safe, `prod:view:${p.id}`).row();
     }
-    await ctx.reply(`${title}\n<i>${products.length} шт. Нажмите, чтобы открыть карточку.</i>`,
+    await ctx.reply(`${title}\n<i>${products.length} шт.</i>`,
       { parse_mode: 'HTML', reply_markup: kb });
   }
 
-  /* ---------- view / stock / delete ---------- */
+  /* ---------- view / stock / delete / photo nav ---------- */
 
   bot.callbackQuery(/^prod:view:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await ctx.answerCallbackQuery();
-    await sendProductCard(ctx, id);
+    await sendProductCard(ctx, id, 0);
+  });
+
+  bot.callbackQuery(/^prod:photo:(\d+):(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
+    const id = Number(ctx.match![1]);
+    const photoIndex = Number(ctx.match![2]);
+    await ctx.answerCallbackQuery();
+    await sendProductCard(ctx, id, photoIndex);
   });
 
   bot.callbackQuery(/^prod:stock:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const p = await prisma.product.findUnique({ where: { id } });
     if (!p) return ctx.answerCallbackQuery({ text: 'Не найден' });
     const updated = await prisma.product.update({
-      where: { id }, data: { inStock: !p.inStock }, include: { category: true },
+      where: { id }, data: { inStock: !p.inStock },
+      include: { category: true, costumeTop: true, costumeBottom: true },
     });
     const caption = formatProduct(updated);
-    const kb = productCardKb(updated);
-    // Try to edit the photo caption (if the message is a photo) or text
+    const paths = resolveImages(updated.images, 10);
+    const kb = productCardKb(updated, 0, paths.length);
     try {
       if (ctx.callbackQuery.message?.photo) {
         await ctx.editMessageCaption({ caption, parse_mode: 'HTML', reply_markup: kb });
@@ -439,56 +553,66 @@ export function startBot() {
         await ctx.editMessageText(caption, { parse_mode: 'HTML', reply_markup: kb });
       }
     } catch {
-      // Follow-up keyboard message (media group) — just update its text
-      try { await ctx.editMessageText(caption, { parse_mode: 'HTML', reply_markup: kb }); }
-      catch { await sendProductCard(ctx, id); }
+      await sendProductCard(ctx, id, 0);
     }
     await ctx.answerCallbackQuery({ text: updated.inStock ? 'В наличии' : 'Нет в наличии' });
   });
 
   bot.callbackQuery(/^prod:del:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const kb = new InlineKeyboard()
-      .text('🗑 Да, удалить', `prod:delconfirm:${id}`)
+      .text('Да, удалить', `prod:delconfirm:${id}`)
       .text('Отмена', 'noop');
     await ctx.answerCallbackQuery();
-    await ctx.reply('⚠️ Удалить этот товар?', { reply_markup: kb });
+    await ctx.reply('Удалить этот товар?', { reply_markup: kb });
   });
 
   bot.callbackQuery(/^prod:delconfirm:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await prisma.orderItem.deleteMany({ where: { productId: id } });
     await prisma.product.delete({ where: { id } });
     await ctx.answerCallbackQuery({ text: 'Удалено' });
-    await ctx.editMessageText('🗑 Товар удалён');
+    await ctx.editMessageText('Товар удалён');
   });
 
   /* ---------- edit entry ---------- */
 
   bot.callbackQuery(/^prod:edit:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const p = await prisma.product.findUnique({ where: { id }, include: { category: true } });
     if (!p) return ctx.answerCallbackQuery({ text: 'Не найден' });
     await ctx.answerCallbackQuery();
-    // Always send as a new TEXT message — the card above may be a photo/media group
-    // which can't be converted to text via edit
     await ctx.reply(
-      `✏️ <b>Редактирование товара</b>\n\n` + formatProduct(p) + `\n\nВыберите, что изменить:`,
-      { parse_mode: 'HTML', reply_markup: productEditKb(id) }
+      `Редактирование товара\n\n` + formatProduct(p) + `\n\nВыберите, что изменить:`,
+      { parse_mode: 'HTML', reply_markup: new InlineKeyboard()
+        .text('Название RU', `pedit:field:${id}:nameRu`)
+        .text('Название EN', `pedit:field:${id}:nameEn`).row()
+        .text('Цены', `pedit:field:${id}:prices`)
+        .text('Размеры', `pedit:field:${id}:sizes`).row()
+        .text('Артикул', `pedit:field:${id}:sku`)
+        .text('Категория', `pedit:cat:${id}`).row()
+        .text('Цвета', `pedit:colors:${id}`)
+        .text('Метки', `pedit:labels:${id}`).row()
+        .text('Назад к карточке', `prod:view:${id}`)
+      }
     );
   });
 
   /* ---------- edit simple text fields ---------- */
 
   const fieldPrompts: Record<string, string> = {
-    nameRu: '📝 Введите новое название на <b>русском</b>:',
-    nameEn: '📝 Введите новое название на <b>английском</b>:',
-    sku: '🏷 Введите артикул (или «-» чтобы очистить):',
-    prices: '💰 Введите три цены через пробел: <code>BYN USD RUB</code>\nНапример: <code>289 89 8200</code>',
-    sizes: '📏 Введите размеры через запятую (или «-» чтобы очистить):',
+    nameRu: 'Введите новое название на <b>русском</b>:',
+    nameEn: 'Введите новое название на <b>английском</b>:',
+    sku: 'Введите артикул (или «-» чтобы очистить):',
+    prices: 'Введите три цены через пробел: <code>BYN USD RUB</code>\nНапример: <code>289 89 8200</code>',
+    sizes: 'Введите размеры через запятую (или «-» чтобы очистить):',
   };
 
   bot.callbackQuery(/^pedit:field:(\d+):(\w+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const field = ctx.match![2];
     if (!fieldPrompts[field]) return ctx.answerCallbackQuery({ text: 'Неизвестное поле' });
@@ -500,25 +624,27 @@ export function startBot() {
   /* ---------- edit category ---------- */
 
   bot.callbackQuery(/^pedit:cat:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const cats = await prisma.category.findMany({ orderBy: { id: 'asc' } });
     const kb = new InlineKeyboard();
     cats.forEach((c, i) => { kb.text(c.nameRu, `pedit:catset:${id}:${c.id}`); if ((i + 1) % 2 === 0) kb.row(); });
-    kb.row().text('◀️ Отмена', `prod:edit:${id}`);
+    kb.row().text('Отмена', `prod:edit:${id}`);
     await ctx.answerCallbackQuery();
-    await ctx.reply('📂 Выберите новую категорию:', { reply_markup: kb });
+    await ctx.reply('Выберите новую категорию:', { reply_markup: kb });
   });
 
   bot.callbackQuery(/^pedit:catset:(\d+):(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const categoryId = Number(ctx.match![2]);
     await prisma.product.update({ where: { id }, data: { categoryId } });
     await ctx.answerCallbackQuery({ text: 'Категория изменена' });
     await ctx.deleteMessage().catch(() => {});
-    await sendProductCard(ctx, id);
+    await sendProductCard(ctx, id, 0);
   });
 
-  /* ---------- edit colors (toggle from existing palette) ---------- */
+  /* ---------- edit colors ---------- */
 
   async function renderColorsEditor(ctx: Context, id: number, edit = false) {
     const products = await prisma.product.findMany({ select: { colors: true } });
@@ -535,8 +661,8 @@ export function startBot() {
     );
 
     if (!palette.size) {
-      const msg = '🎨 В системе нет цветов с именами.\nДобавьте цвет через админ-панель сайта.';
-      if (edit) await ctx.editMessageText(msg, { reply_markup: new InlineKeyboard().text('◀️ Назад', `prod:edit:${id}`) });
+      const msg = 'В системе нет цветов с именами.\nДобавьте цвет через админ-панель сайта.';
+      if (edit) await ctx.editMessageText(msg, { reply_markup: new InlineKeyboard().text('Назад', `prod:edit:${id}`) });
       else await ctx.reply(msg);
       return;
     }
@@ -545,35 +671,36 @@ export function startBot() {
     const arr = Array.from(palette.values());
     arr.forEach((c, i) => {
       const marked = selected.has(c.hex.toLowerCase());
-      kb.text(`${marked ? '✅ ' : '○ '}${c.name}`, `pedit:colortoggle:${id}:${c.hex}`);
+      kb.text(`${marked ? '[x] ' : '[ ] '}${c.name}`, `pedit:colortoggle:${id}:${c.hex}`);
       if ((i + 1) % 2 === 0) kb.row();
     });
-    kb.row().text('◀️ Готово', `prod:edit:${id}`);
+    kb.row().text('Готово', `prod:edit:${id}`);
 
-    const text = '🎨 <b>Цвета товара</b>\nНажимайте, чтобы добавить или убрать.\n\n<i>Новый цвет — через админ-панель сайта.</i>';
+    const text = 'Цвета товара\nНажимайте, чтобы добавить или убрать.\n\n<i>Новый цвет — через админ-панель сайта.</i>';
     if (edit) await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: kb });
     else await ctx.reply(text, { parse_mode: 'HTML', reply_markup: kb });
   }
 
   bot.callbackQuery(/^pedit:colors:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await ctx.answerCallbackQuery();
     await renderColorsEditor(ctx, id, true);
   });
 
   bot.callbackQuery(/^pedit:colortoggle:(\d+):(.+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const hex = ctx.match![2].toLowerCase();
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return ctx.answerCallbackQuery({ text: 'Не найден' });
-    // Load palette to get name by hex
     const all = await prisma.product.findMany({ select: { colors: true } });
     const palette = new Map<string, { hex: string; name: string }>();
     for (const p of all) for (const c of p.colors) {
       try { const parsed = JSON.parse(c); if (parsed.hex) palette.set(parsed.hex.toLowerCase(), parsed); } catch {}
     }
 
-    const current = new Map<string, string>(); // hex -> raw JSON
+    const current = new Map<string, string>();
     for (const raw of product.colors) {
       try { const parsed = JSON.parse(raw); if (parsed.hex) current.set(parsed.hex.toLowerCase(), raw); }
       catch { current.set(raw.toLowerCase(), raw); }
@@ -596,29 +723,30 @@ export function startBot() {
     const product = await prisma.product.findUnique({ where: { id } });
     if (!product) return;
     const selected = new Set(product.labels);
-    // Combine presets with any custom labels the product already has
     const all = Array.from(new Set([...PRESET_LABELS, ...product.labels]));
 
     const kb = new InlineKeyboard();
     all.forEach((l, i) => {
       const marked = selected.has(l);
-      kb.text(`${marked ? '✅ ' : '○ '}${l}`, `pedit:labeltoggle:${id}:${l}`);
+      kb.text(`${marked ? '[x] ' : ''}${l}`, `pedit:labeltoggle:${id}:${l}`);
       if ((i + 1) % 3 === 0) kb.row();
     });
-    kb.row().text('◀️ Готово', `prod:edit:${id}`);
+    kb.row().text('Готово', `prod:edit:${id}`);
 
-    const text = '🏷 <b>Метки товара</b>\nНажимайте, чтобы добавить или убрать.';
-    if (edit) await ctx.editMessageText(text, { parse_mode: 'HTML', reply_markup: kb });
-    else await ctx.reply(text, { parse_mode: 'HTML', reply_markup: kb });
+    const text = 'Метки товара\nНажимайте, чтобы добавить или убрать.';
+    if (edit) await ctx.editMessageText(text, { reply_markup: kb });
+    else await ctx.reply(text, { reply_markup: kb });
   }
 
   bot.callbackQuery(/^pedit:labels:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     await ctx.answerCallbackQuery();
     await renderLabelsEditor(ctx, id, true);
   });
 
   bot.callbackQuery(/^pedit:labeltoggle:(\d+):(.+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const id = Number(ctx.match![1]);
     const label = ctx.match![2];
     const product = await prisma.product.findUnique({ where: { id } });
@@ -637,31 +765,33 @@ export function startBot() {
   /* ---------- Add product wizard ---------- */
 
   bot.callbackQuery('prod:add', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery({ text: 'Нет доступа' });
     const cats = await prisma.category.findMany({ orderBy: { id: 'asc' } });
     if (!cats.length) {
       await ctx.answerCallbackQuery();
-      await ctx.reply('⚠️ Сначала создайте хотя бы одну категорию.');
+      await ctx.reply('Сначала создайте хотя бы одну категорию.');
       return;
     }
     setFlow(ctx.chat!.id, 'add_product', { colors: [], labels: [], images: [] });
     await ctx.answerCallbackQuery();
-    await ctx.reply('📝 <b>Шаг 1/8.</b> Введите название товара на <b>русском</b> (или /cancel):', { parse_mode: 'HTML' });
+    await ctx.reply('Шаг 1/8. Введите название товара на <b>русском</b> (или /cancel):', { parse_mode: 'HTML' });
   });
 
   async function promptCategory(ctx: Context) {
     const cats = await prisma.category.findMany({ orderBy: { id: 'asc' } });
     const kb = new InlineKeyboard();
     cats.forEach((c, i) => { kb.text(c.nameRu, `wz:cat:${c.id}`); if ((i + 1) % 2 === 0) kb.row(); });
-    await ctx.reply('📂 <b>Шаг 3/8.</b> Выберите категорию:', { parse_mode: 'HTML', reply_markup: kb });
+    await ctx.reply('Шаг 3/8. Выберите категорию:', { reply_markup: kb });
   }
 
   bot.callbackQuery(/^wz:cat:(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery();
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product') return ctx.answerCallbackQuery();
     updateSession(ctx.chat!.id, { step: 3, data: { categoryId: Number(ctx.match![1]) } });
     await ctx.answerCallbackQuery();
     await ctx.reply(
-      '💰 <b>Шаг 4/8.</b> Введите цены через пробел: <code>BYN USD RUB</code>\nНапример: <code>289 89 8200</code>',
+      'Шаг 4/8. Введите цены через пробел: <code>BYN USD RUB</code>\nНапример: <code>289 89 8200</code>',
       { parse_mode: 'HTML' }
     );
   });
@@ -683,10 +813,8 @@ export function startBot() {
 
     if (!allColors.length) {
       await ctx.reply(
-        '🎨 В системе пока нет цветов с именами.\n\n' +
-        'Добавьте глобальный цвет через админ-панель сайта (страница «Товары» → палитра цветов). ' +
-        'После этого цвета станут доступны в боте.\n\n' +
-        'Пока пропускаем цвета. /skip',
+        'В системе пока нет цветов с именами.\n' +
+        'Добавьте глобальный цвет через админ-панель сайта. /skip'
       );
       updateSession(ctx.chat!.id, { step: 5, data: {} });
       return;
@@ -695,19 +823,16 @@ export function startBot() {
     const kb = new InlineKeyboard();
     allColors.forEach((c, i) => {
       const marked = selected.includes(c.hex.toLowerCase());
-      kb.text(`${marked ? '✅ ' : ''}${c.name}`, `wz:color:${c.hex}`);
+      kb.text(`${marked ? '[x] ' : ''}${c.name}`, `wz:color:${c.hex}`);
       if ((i + 1) % 2 === 0) kb.row();
     });
-    kb.row().text('✅ Готово', 'wz:colors:done').text('⏭ Пропустить', 'wz:colors:skip');
+    kb.row().text('Готово', 'wz:colors:done').text('Пропустить', 'wz:colors:skip');
 
-    await ctx.reply(
-      '🎨 <b>Шаг 6/8.</b> Выберите цвета из палитры (можно несколько).\n\n' +
-      '<i>Новый цвет нужно добавлять через админ-панель сайта.</i>',
-      { parse_mode: 'HTML', reply_markup: kb }
-    );
+    await ctx.reply('Шаг 6/8. Выберите цвета из палитры:', { reply_markup: kb });
   }
 
   bot.callbackQuery(/^wz:color:(.+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery();
     const hex = ctx.match![1].toLowerCase();
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product') return ctx.answerCallbackQuery();
@@ -720,6 +845,7 @@ export function startBot() {
   });
 
   bot.callbackQuery(['wz:colors:done', 'wz:colors:skip'], async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery();
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product') return ctx.answerCallbackQuery();
     await ctx.answerCallbackQuery();
@@ -732,15 +858,16 @@ export function startBot() {
     const kb = new InlineKeyboard();
     PRESET_LABELS.forEach((l, i) => {
       const marked = selected.includes(l);
-      kb.text(`${marked ? '✅ ' : ''}${l}`, `wz:label:${l}`);
+      kb.text(`${marked ? '[x] ' : ''}${l}`, `wz:label:${l}`);
       if ((i + 1) % 3 === 0) kb.row();
     });
-    kb.row().text('✅ Готово', 'wz:labels:done').text('⏭ Пропустить', 'wz:labels:done');
+    kb.row().text('Готово', 'wz:labels:done').text('Пропустить', 'wz:labels:done');
     updateSession(ctx.chat!.id, { step: 6 });
-    await ctx.reply('🏷 <b>Шаг 7/8.</b> Выберите метки (можно несколько):', { parse_mode: 'HTML', reply_markup: kb });
+    await ctx.reply('Шаг 7/8. Выберите метки:', { reply_markup: kb });
   }
 
   bot.callbackQuery(/^wz:label:(.+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery();
     const label = ctx.match![1];
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product') return ctx.answerCallbackQuery();
@@ -753,6 +880,7 @@ export function startBot() {
   });
 
   bot.callbackQuery('wz:labels:done', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery();
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product') return ctx.answerCallbackQuery();
     await ctx.answerCallbackQuery();
@@ -762,17 +890,16 @@ export function startBot() {
   async function promptPhotos(ctx: Context) {
     updateSession(ctx.chat!.id, { step: 7 });
     const kb = new InlineKeyboard()
-      .text('✅ Сохранить товар', 'wz:photos:done')
-      .text('⏭ Без фото', 'wz:photos:done');
+      .text('Сохранить товар', 'wz:photos:done')
+      .text('Без фото', 'wz:photos:done');
     await ctx.reply(
-      '📷 <b>Шаг 8/8.</b> Пришлите фотографии товара.\n' +
-      'Можно отправить несколько — по одной или альбомом. Отправленные фото будут добавлены к товару.\n\n' +
-      'Когда закончите — нажмите <b>Сохранить</b>.',
+      'Шаг 8/8. Пришлите фотографии товара (по одной или альбомом).\nКогда закончите — нажмите <b>Сохранить</b>.',
       { parse_mode: 'HTML', reply_markup: kb }
     );
   }
 
   bot.callbackQuery('wz:photos:done', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return ctx.answerCallbackQuery();
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product') return ctx.answerCallbackQuery();
     await ctx.answerCallbackQuery();
@@ -781,18 +908,19 @@ export function startBot() {
 
   /* ---------- Photo upload handler (wizard step 7) ---------- */
   bot.on('message:photo', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     const sess = getSession(ctx.chat!.id);
     if (sess.flow !== 'add_product' || sess.step !== 7) return;
     try {
       const photos = ctx.message.photo;
-      const fileId = photos[photos.length - 1].file_id; // largest size
+      const fileId = photos[photos.length - 1].file_id;
       const url = await downloadTelegramPhoto(bot, fileId);
       const images: string[] = sess.data?.images || [];
       images.push(url);
       updateSession(ctx.chat!.id, { data: { images } });
-      await ctx.reply(`📸 Фото добавлено (всего: ${images.length})`);
+      await ctx.reply(`Фото добавлено (всего: ${images.length})`);
     } catch (err: any) {
-      await ctx.reply(`❌ Не удалось загрузить фото: ${err.message}`);
+      await ctx.reply(`Не удалось загрузить фото: ${err.message}`);
     }
   });
 
@@ -824,15 +952,11 @@ export function startBot() {
       });
 
       clearSession(ctx.chat!.id);
-      const photoCount = (d.images || []).length;
-      const footer = photoCount
-        ? `\n\n<i>Загружено ${photoCount} ${photoCount === 1 ? 'фото' : 'фото'}. Описание можно добавить через админ-панель.</i>`
-        : '\n\n<i>Фото и описание можно добавить через админ-панель сайта.</i>';
-      await ctx.reply('✅ <b>Товар создан</b>\n\n' + formatProduct(product) + footer,
+      await ctx.reply('Товар создан\n\n' + formatProduct(product),
         { parse_mode: 'HTML', reply_markup: mainMenu() }
       );
     } catch (err: any) {
-      await ctx.reply(`❌ Ошибка: ${err.message}`, { reply_markup: mainMenu() });
+      await ctx.reply(`Ошибка: ${err.message}`, { reply_markup: mainMenu() });
       clearSession(ctx.chat!.id);
     }
   }
@@ -843,16 +967,25 @@ export function startBot() {
 
   bot.on('message:text', async (ctx) => {
     const text = ctx.message.text.trim();
-    if (text.startsWith('/')) return; // command
-    // reserved menu buttons already handled by .hears
+    if (text.startsWith('/')) return;
 
-    const sess = getSession(ctx.chat!.id);
+    const chatId = ctx.chat!.id;
+
+    // Non-admin users: friendly response
+    if (!isAdminChat(chatId)) {
+      await ctx.reply(
+        'Здравствуйте! По вопросам заказов и оптовых закупок, пожалуйста, свяжитесь с нами через сайт lans-style.by или позвоните нам. Мы будем рады помочь! 👗'
+      );
+      return;
+    }
+
+    const sess = getSession(chatId);
     if (!sess.flow) return;
 
     /* --- add_category --- */
     if (sess.flow === 'add_category') {
       if (sess.step === 0) {
-        updateSession(ctx.chat!.id, { step: 1, data: { nameRu: text } });
+        updateSession(chatId, { step: 1, data: { nameRu: text } });
         await ctx.reply('Теперь название на <b>английском</b>:', { parse_mode: 'HTML' });
         return;
       }
@@ -863,15 +996,15 @@ export function startBot() {
         let counter = 1;
         while (await prisma.category.findUnique({ where: { slug } })) slug = `${transliterate(nameRu)}-${counter++}`;
         const cat = await prisma.category.create({ data: { nameRu, nameEn, slug } });
-        clearSession(ctx.chat!.id);
-        await ctx.reply(`✅ Категория «${cat.nameRu}» создана`, { reply_markup: mainMenu() });
+        clearSession(chatId);
+        await ctx.reply(`Категория «${cat.nameRu}» создана`, { reply_markup: mainMenu() });
         return;
       }
     }
 
     /* --- search_products --- */
     if (sess.flow === 'search_products') {
-      clearSession(ctx.chat!.id);
+      clearSession(chatId);
       const where = {
         OR: [
           { nameRu: { contains: text, mode: 'insensitive' as const } },
@@ -879,20 +1012,20 @@ export function startBot() {
           { sku: { contains: text, mode: 'insensitive' as const } },
         ],
       };
-      await listProductsAsButtons(ctx, where, `🔍 <b>Поиск: «${text}»</b>`);
+      await listProductsAsButtons(ctx, where, `Поиск: «${text}»`);
       return;
     }
 
     /* --- edit_product_field --- */
     if (sess.flow === 'edit_product_field') {
       const { productId, field } = sess.data || {};
-      if (!productId || !field) { clearSession(ctx.chat!.id); return; }
+      if (!productId || !field) { clearSession(chatId); return; }
 
       try {
         if (field === 'prices') {
           const parts = text.split(/\s+/).map(Number);
           if (parts.length < 2 || parts.some((n) => isNaN(n))) {
-            await ctx.reply('❌ Нужно 2–3 числа через пробел, например: <code>289 89 8200</code>', { parse_mode: 'HTML' });
+            await ctx.reply('Нужно 2–3 числа через пробел, например: <code>289 89 8200</code>', { parse_mode: 'HTML' });
             return;
           }
           const [priceByn, priceUsd, priceRub = 0] = parts;
@@ -906,16 +1039,15 @@ export function startBot() {
         } else if (field === 'nameRu' || field === 'nameEn') {
           await prisma.product.update({ where: { id: productId }, data: { [field]: text.trim() } });
         } else {
-          await ctx.reply('Неизвестное поле');
-          clearSession(ctx.chat!.id);
+          clearSession(chatId);
           return;
         }
-        clearSession(ctx.chat!.id);
-        await ctx.reply('✅ Сохранено');
-        await sendProductCard(ctx, productId);
+        clearSession(chatId);
+        await ctx.reply('Сохранено');
+        await sendProductCard(ctx, productId, 0);
       } catch (err: any) {
-        await ctx.reply(`❌ Ошибка: ${err.message}`);
-        clearSession(ctx.chat!.id);
+        await ctx.reply(`Ошибка: ${err.message}`);
+        clearSession(chatId);
       }
       return;
     }
@@ -924,30 +1056,30 @@ export function startBot() {
     if (sess.flow === 'add_product') {
       const step = sess.step ?? 0;
       if (step === 0) {
-        updateSession(ctx.chat!.id, { step: 1, data: { nameRu: text } });
-        await ctx.reply('🌐 <b>Шаг 2/7.</b> Введите название на <b>английском</b> (или отправьте «-» чтобы пропустить):', { parse_mode: 'HTML' });
+        updateSession(chatId, { step: 1, data: { nameRu: text } });
+        await ctx.reply('Шаг 2/8. Введите название на <b>английском</b> (или «-» пропустить):', { parse_mode: 'HTML' });
         return;
       }
       if (step === 1) {
         const nameEn = text === '-' ? '' : text;
-        updateSession(ctx.chat!.id, { step: 2, data: { nameEn } });
+        updateSession(chatId, { step: 2, data: { nameEn } });
         await promptCategory(ctx);
         return;
       }
       if (step === 3) {
         const parts = text.split(/\s+/).map(Number);
         if (parts.length < 2 || parts.some((n) => isNaN(n))) {
-          await ctx.reply('❌ Введите 2–3 числа через пробел, например: <code>289 89 8200</code>', { parse_mode: 'HTML' });
+          await ctx.reply('Введите 2–3 числа через пробел, например: <code>289 89 8200</code>', { parse_mode: 'HTML' });
           return;
         }
         const [priceByn, priceUsd, priceRub = 0] = parts;
-        updateSession(ctx.chat!.id, { step: 4, data: { priceByn, priceUsd, priceRub } });
-        await ctx.reply('📏 <b>Шаг 5/7.</b> Введите размеры через запятую (например: <code>S, M, L, XL</code>) или «-» чтобы пропустить:', { parse_mode: 'HTML' });
+        updateSession(chatId, { step: 4, data: { priceByn, priceUsd, priceRub } });
+        await ctx.reply('Шаг 5/8. Введите размеры через запятую (например: <code>42, 44, 46, 48</code>) или «-» пропустить:', { parse_mode: 'HTML' });
         return;
       }
       if (step === 4) {
         const sizes = text === '-' ? [] : text.split(',').map((s) => s.trim()).filter(Boolean);
-        updateSession(ctx.chat!.id, { step: 5, data: { sizes } });
+        updateSession(chatId, { step: 5, data: { sizes } });
         await promptColors(ctx);
         return;
       }
@@ -959,6 +1091,7 @@ export function startBot() {
      ============================================================ */
 
   bot.command('skip', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
     const sess = getSession(ctx.chat!.id);
     if (sess.flow === 'add_product' && sess.step === 5) {
       await promptLabels(ctx);

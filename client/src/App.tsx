@@ -39,11 +39,11 @@ export default function App() {
         <Route path="/search" element={<Search />} />
         <Route path="/order-success" element={<OrderSuccess />} />
       </Route>
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/admin" element={<AdminDashboard />} />
-      <Route path="/admin/products" element={<AdminProducts />} />
-      <Route path="/admin/categories" element={<AdminCategories />} />
-      <Route path="/admin/orders" element={<AdminOrders />} />
+      <Route path="/lansadmin/login" element={<AdminLogin />} />
+      <Route path="/lansadmin" element={<AdminDashboard />} />
+      <Route path="/lansadmin/products" element={<AdminProducts />} />
+      <Route path="/lansadmin/categories" element={<AdminCategories />} />
+      <Route path="/lansadmin/orders" element={<AdminOrders />} />
     </Routes>
     </>
   );
