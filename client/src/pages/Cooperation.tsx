@@ -11,7 +11,7 @@ import {
 const advantages = [
   { icon: HiOutlineCheckBadge, label: 'Все изделия с сертификатами' },
   { icon: HiOutlineScissors, label: 'Размерный ряд 40–52' },
-  { icon: HiOutlineSparkles, label: 'Более 10 000 единиц в месяц' },
+  { icon: HiOutlineSparkles, label: 'Более 5000 единиц в месяц' },
   { icon: HiOutlineGlobeAlt, label: 'Доставка по всему миру' },
 ];
 

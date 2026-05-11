@@ -12,7 +12,7 @@ import {
 const stats = [
   { icon: HiOutlineCheckBadge, value: 'с 2007', label: 'Работаем на рынке' },
   { icon: HiOutlineScissors, value: '20+', label: 'Моделей каждый месяц' },
-  { icon: HiOutlineSparkles, value: '10 000+', label: 'Единиц в месяц' },
+  { icon: HiOutlineSparkles, value: '5000+', label: 'Единиц в месяц' },
   { icon: HiOutlineTruck, value: 'По миру', label: 'Доставляем заказы' },
 ];
 
