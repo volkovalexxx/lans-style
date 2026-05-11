@@ -1,20 +1,61 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { HiOutlineShoppingBag, HiOutlineHeart, HiOutlineBars3, HiOutlineXMark, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import {
+  HiOutlineShoppingBag, HiOutlineHeart, HiOutlineBars3, HiOutlineXMark,
+  HiOutlineMagnifyingGlass,
+} from 'react-icons/hi2';
 import { useCartStore } from '../../store/cartStore';
 import { useFavStore } from '../../store/favStore';
+import { useCurrencyStore, formatPrice } from '../../store/currencyStore';
 import LanguageSwitcher from '../LanguageSwitcher';
 import SearchBar from '../SearchBar';
+import api from '../../api/client';
 
 export default function Header() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isRu = i18n.language === 'ru';
   const location = useLocation();
   const navigate = useNavigate();
+  const { currency } = useCurrencyStore();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileQuery, setMobileQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [sugLoading, setSugLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cartCount = useCartStore((s) => s.totalItems());
   const favCount = useFavStore((s) => s.items.length);
+
+  useEffect(() => {
+    if (searchOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    } else {
+      setSuggestions([]);
+    }
+  }, [searchOpen]);
+
+  // Live suggestions while typing
+  useEffect(() => {
+    if (mobileQuery.length < 2) { setSuggestions([]); return; }
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      setSugLoading(true);
+      try {
+        const res = await api.get('/products', { params: { search: mobileQuery, limit: 5 } });
+        setSuggestions(res.data.products || []);
+      } catch { setSuggestions([]); }
+      finally { setSugLoading(false); }
+    }, 300);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [mobileQuery]);
+
+  // Close mobile search on route change
+  useEffect(() => {
+    setSearchOpen(false);
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const navLinks = [
     { to: '/', label: t('nav.home') },
@@ -24,18 +65,26 @@ export default function Header() {
     { to: '/contacts', label: t('nav.contacts') },
   ];
 
+  const handleMobileSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mobileQuery.trim()) {
+      navigate(`/search?q=${encodeURIComponent(mobileQuery.trim())}`);
+      setSearchOpen(false);
+      setMobileOpen(false);
+      setMobileQuery('');
+    }
+  };
+
   return (
     <header className="bg-white/80 backdrop-blur-md border-b border-[#E5E5E3] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16 min-[1200px]:h-20">
           {/* Logo */}
           <Link to="/" style={{ display: 'inline-flex', flexDirection: 'column', lineHeight: 1.05, textDecoration: 'none' }}>
-            {/* "L" slightly bigger than "ANS" */}
             <span style={{ fontFamily: 'var(--font-logo)', fontWeight: 300, letterSpacing: '0.2em', color: '#1A1A1A' }}>
               <span style={{ fontSize: 'clamp(1.28rem, 2.1vw, 1.58rem)' }}>L</span>
               <span style={{ fontSize: 'clamp(1.2rem, 2vw, 1.5rem)' }}>ANS</span>
             </span>
-            {/* "S" slightly bigger than "TYLE" */}
             <span style={{ fontFamily: 'var(--font-logo)', fontWeight: 300, letterSpacing: '0.18em', color: '#1A1A1A' }}>
               <span style={{ fontSize: 'clamp(1.68rem, 2.75vw, 2.08rem)' }}>S</span>
               <span style={{ fontSize: 'clamp(1.6rem, 2.6vw, 2rem)' }}>TYLE</span>
@@ -58,12 +107,24 @@ export default function Header() {
           </nav>
 
           {/* Right side */}
-          <div className="flex items-center gap-2">
-            {/* Search + language/currency (≥768px) */}
+          <div className="flex items-center gap-1 sm:gap-2">
+            {/* SearchBar — tablet and up (768-1200px hidden on desktop where it's in nav area) */}
             <div className="hidden md:flex items-center gap-2">
               <SearchBar />
               <LanguageSwitcher />
             </div>
+
+            {/* Mobile search icon — only <768px */}
+            <button
+              className="md:hidden p-2 text-[#1A1A1A] hover:text-[#C4A882] transition-colors"
+              onClick={() => { setSearchOpen(!searchOpen); setMobileOpen(false); }}
+              aria-label="Поиск"
+            >
+              {searchOpen
+                ? <HiOutlineXMark className="w-6 h-6" />
+                : <HiOutlineMagnifyingGlass className="w-6 h-6" />
+              }
+            </button>
 
             <Link to="/favorites" className="relative p-2 hover:text-[#C4A882] transition-colors">
               <HiOutlineHeart className="w-6 h-6" />
@@ -83,20 +144,80 @@ export default function Header() {
               )}
             </Link>
 
-            {/* Hamburger menu toggle (<1200px) */}
+            {/* Hamburger (<1200px) */}
             <button
               className="min-[1200px]:hidden p-2"
-              onClick={() => setMobileOpen(!mobileOpen)}
+              onClick={() => { setMobileOpen(!mobileOpen); setSearchOpen(false); }}
             >
               {mobileOpen ? <HiOutlineXMark className="w-6 h-6" /> : <HiOutlineBars3 className="w-6 h-6" />}
             </button>
           </div>
         </div>
 
+        {/* Mobile search bar — slides in below header row, <768px */}
+        {searchOpen && (
+          <div className="md:hidden pb-3">
+            <form onSubmit={handleMobileSearch} className="flex items-center gap-2 bg-[#F5F0EB] rounded-2xl px-4 py-2.5">
+              <HiOutlineMagnifyingGlass className="w-4 h-4 text-[#6B6B6B] flex-shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={mobileQuery}
+                onChange={(e) => setMobileQuery(e.target.value)}
+                placeholder={t('search.placeholder')}
+                className="flex-1 text-sm bg-transparent outline-none text-[#1A1A1A] placeholder-[#6B6B6B]"
+              />
+              {mobileQuery && (
+                <button type="button" onClick={() => { setMobileQuery(''); setSuggestions([]); }} className="text-[#6B6B6B]">
+                  <HiOutlineXMark className="w-4 h-4" />
+                </button>
+              )}
+            </form>
+
+            {/* Suggestions dropdown */}
+            {mobileQuery.length >= 2 && (
+              <div className="mt-1 bg-white rounded-2xl shadow-lg border border-[#E5E5E3] overflow-hidden">
+                {sugLoading && <p className="text-xs text-[#6B6B6B] p-3 text-center">...</p>}
+                {!sugLoading && suggestions.length === 0 && (
+                  <p className="text-sm text-[#6B6B6B] p-4 text-center">{t('search.no_results')}</p>
+                )}
+                {suggestions.map((p) => (
+                  <Link
+                    key={p.id}
+                    to={`/product/${p.slug}`}
+                    onClick={() => { setSearchOpen(false); setMobileQuery(''); setSuggestions([]); }}
+                    className="flex items-center gap-3 px-4 py-3 hover:bg-[#F5F0EB] active:bg-[#F5F0EB] transition-colors border-b border-[#F5F0EB] last:border-0"
+                  >
+                    <div className="w-9 h-11 rounded-lg bg-[#F5F0EB] flex-shrink-0 overflow-hidden">
+                      {p.images[0]
+                        ? <img src={p.images[0]} alt="" className="w-full h-full object-cover" />
+                        : <div className="w-full h-full flex items-center justify-center text-[#C4A882] text-[10px]">LS</div>
+                      }
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{isRu ? p.nameRu : p.nameEn}</p>
+                      <p className="text-xs text-[#6B6B6B]">{formatPrice(p.priceByn, p.priceUsd, p.priceRub || 0, currency)}</p>
+                    </div>
+                  </Link>
+                ))}
+                {suggestions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => { navigate(`/search?q=${encodeURIComponent(mobileQuery)}`); setSearchOpen(false); setMobileQuery(''); }}
+                    className="w-full text-center text-sm text-[#C4A882] py-3 hover:bg-[#F5F0EB] transition-colors"
+                  >
+                    {t('search.view_all')} →
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Expandable nav (<1200px) */}
         {mobileOpen && (
           <nav className="min-[1200px]:hidden pb-4 border-t border-[#E5E5E3] pt-4 space-y-3">
-            {/* Search — only below 768 (above, it's in the header already) */}
+            {/* Search — only below 768 (above, it's inline in header) */}
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -131,7 +252,6 @@ export default function Header() {
               </Link>
             ))}
 
-            {/* Language + currency — only below 768 */}
             <div className="md:hidden pt-2 border-t border-[#E5E5E3]">
               <LanguageSwitcher />
             </div>

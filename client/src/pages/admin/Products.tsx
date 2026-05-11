@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import api from '../../api/client';
 import { AdminLayout } from './Dashboard';
 import ColorPalette, { type ColorItem } from '../../components/admin/ColorPalette';
@@ -7,14 +8,14 @@ import FileUpload from '../../components/admin/FileUpload';
 import {
   HiOutlinePencil, HiOutlineTrash, HiOutlinePlus, HiXMark,
   HiOutlineMagnifyingGlass, HiChevronLeft, HiChevronRight,
-  HiArrowsRightLeft, HiArrowPath,
+  HiArrowsRightLeft, HiArrowPath, HiOutlineArchiveBox, HiOutlineSquare2Stack,
+  HiStar,
 } from 'react-icons/hi2';
 import ProductPicker from '../../components/admin/ProductPicker';
 
 interface NbrbRates { usd: number; rub100: number; fetchedAt: number }
 let ratesCache: NbrbRates | null = null;
 
-// Returns the most recent scheduled fetch time (8:00 or 20:00 today/yesterday)
 function lastScheduledMs(): number {
   const now = new Date();
   const t = (h: number, d = 0) => { const x = new Date(now); x.setDate(x.getDate() + d); x.setHours(h, 0, 0, 0); return x.getTime(); };
@@ -23,7 +24,6 @@ function lastScheduledMs(): number {
   return t(20, -1);
 }
 
-// Returns ms until the next scheduled fetch (8:00 or 20:00)
 function msUntilNext(): number {
   const now = new Date();
   const t = (h: number, d = 0) => { const x = new Date(now); x.setDate(x.getDate() + d); x.setHours(h, 0, 0, 0); return x.getTime(); };
@@ -55,9 +55,11 @@ interface Product {
   nameRu: string; nameEn: string;
   priceByn: string; priceUsd: string; priceRub: string;
   sizes: string[]; colors: string[]; labels: string[]; images: string[];
-  inStock: boolean; isNew: boolean; categoryId: number;
+  inStock: boolean; isNew: boolean; categoryId: number; isArchived: boolean;
   category?: { nameRu: string };
-  isCostume?: boolean; costumeTopId?: number | null; costumeBottomId?: number | null;
+  isCostume?: boolean;
+  costumeTopId?: number | null; costumeBottomId?: number | null;
+  costumeItem3Id?: number | null; costumeItem4Id?: number | null; costumeItem5Id?: number | null;
 }
 
 interface Category { id: number; nameRu: string; }
@@ -89,7 +91,12 @@ const emptyProduct = {
   priceByn: '', priceUsd: '', priceRub: '', sizes: '',
   inStock: true, isNew: false, categoryId: 0,
   labels: [] as string[], images: [] as string[],
-  isCostume: false, costumeTopId: null as number | null, costumeBottomId: null as number | null,
+  isCostume: false,
+  costumeTopId: null as number | null,
+  costumeBottomId: null as number | null,
+  costumeItem3Id: null as number | null,
+  costumeItem4Id: null as number | null,
+  costumeItem5Id: null as number | null,
 };
 
 function ImgWithSkeleton({ src, className }: { src: string; className: string }) {
@@ -114,7 +121,6 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const editFormRef = useRef<HTMLFormElement>(null);
 
-  // Filters / sort / pagination
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('');
   const [filterStock, setFilterStock] = useState('');
@@ -126,11 +132,26 @@ export default function AdminProducts() {
   const [editLabels, setEditLabels] = useState<string[]>([]);
   const [customLabel, setCustomLabel] = useState('');
   const [images, setImages] = useState<File[]>([]);
+  const [uploadingImages, setUploadingImages] = useState(false);
   const [creatingCategory, setCreatingCategory] = useState(false);
   const [newCategoryRu, setNewCategoryRu] = useState('');
+  const [newCategoryEn, setNewCategoryEn] = useState('');
   const [rates, setRates] = useState<NbrbRates | null>(ratesCache);
   const [ratesLoading, setRatesLoading] = useState(false);
-  const [newCategoryEn, setNewCategoryEn] = useState('');
+
+  // Multi-select state
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
+
+  // Feature 1: drag-and-drop — ref to avoid stale closure
+  const dragImgIdx = useRef<number | null>(null);
+  const [dragOver, setDragOver] = useState<number | null>(null);
+
+  // Feature 5: replace individual image
+  const replaceRefs = useRef<(HTMLInputElement | null)[]>([]);
+
+  // Feature 2: extra costume slots (0 = only top+bottom, up to 3 more)
+  const [extraCostumeSlots, setExtraCostumeSlots] = useState(0);
 
   const load = useCallback(async (resetPage = false) => {
     const p = resetPage ? 1 : page;
@@ -149,7 +170,6 @@ export default function AdminProducts() {
     setLoading(false);
   }, [page, search, filterCat, filterStock, sort]);
 
-  // For costume dropdowns: load all non-costume products
   const loadAll = useCallback(async () => {
     const r = await api.get('/products', { params: { limit: 999 } });
     setAllProducts(r.data.products);
@@ -160,21 +180,11 @@ export default function AdminProducts() {
     loadAll();
   }, [loadAll]);
 
-  // Fetch rates on mount + schedule at 8:00 and 20:00
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
-
-    const doFetch = () => {
-      fetchNbrbRates().then(setRates).catch(() => {});
-    };
-
-    const schedule = () => {
-      const delay = msUntilNext();
-      timer = setTimeout(() => { doFetch(); schedule(); }, delay);
-    };
-
-    doFetch();
-    schedule();
+    const doFetch = () => { fetchNbrbRates().then(setRates).catch(() => {}); };
+    const schedule = () => { const delay = msUntilNext(); timer = setTimeout(() => { doFetch(); schedule(); }, delay); };
+    doFetch(); schedule();
     return () => clearTimeout(timer);
   }, []);
 
@@ -185,15 +195,10 @@ export default function AdminProducts() {
     const hasByn = !!parseFloat(editing.priceByn);
     const hasUsd = !!parseFloat(editing.priceUsd);
     const hasRub = !!parseFloat(editing.priceRub);
-    // Determine base: BYN first, then USD
     let byn = 0;
-    if (hasByn) {
-      byn = parseFloat(editing.priceByn);
-    } else if (hasUsd) {
-      byn = parseFloat(editing.priceUsd) * usdRate;
-    } else {
-      return; // nothing to calculate from
-    }
+    if (hasByn) byn = parseFloat(editing.priceByn);
+    else if (hasUsd) byn = parseFloat(editing.priceUsd) * usdRate;
+    else return;
     const usd = byn / usdRate;
     const rub = byn / bynPerRub;
     setEditing((prev: any) => ({
@@ -227,13 +232,23 @@ export default function AdminProducts() {
         isCostume: product.isCostume || false,
         costumeTopId: product.costumeTopId || null,
         costumeBottomId: product.costumeBottomId || null,
+        costumeItem3Id: product.costumeItem3Id || null,
+        costumeItem4Id: product.costumeItem4Id || null,
+        costumeItem5Id: product.costumeItem5Id || null,
       });
       setEditColors(parseColors(product.colors || []));
       setEditLabels(product.labels || []);
+      // Determine how many extra slots to show
+      let extra = 0;
+      if (product.costumeItem3Id) extra = 1;
+      if (product.costumeItem4Id) extra = 2;
+      if (product.costumeItem5Id) extra = 3;
+      setExtraCostumeSlots(extra);
     } else {
       setEditing({ ...emptyProduct });
       setEditColors([]);
       setEditLabels([]);
+      setExtraCostumeSlots(0);
     }
     setCreatingCategory(false);
     setNewCategoryRu('');
@@ -248,6 +263,7 @@ export default function AdminProducts() {
     setImages([]);
     setCustomLabel('');
     setCreatingCategory(false);
+    setExtraCostumeSlots(0);
   };
 
   const toggleLabel = (label: string) =>
@@ -257,6 +273,64 @@ export default function AdminProducts() {
     const label = customLabel.trim().toUpperCase();
     if (label && !editLabels.includes(label)) setEditLabels([...editLabels, label]);
     setCustomLabel('');
+  };
+
+  // Feature 1: set image as main (move to index 0)
+  const setMainImage = (idx: number) => {
+    if (idx === 0) return;
+    setEditing((prev: any) => {
+      const imgs = [...prev.images];
+      const [moved] = imgs.splice(idx, 1);
+      imgs.unshift(moved);
+      return { ...prev, images: imgs };
+    });
+  };
+
+  // Feature 1: drag-and-drop reorder (ref-based — no stale closure)
+  const onImgDragStart = (idx: number) => { dragImgIdx.current = idx; };
+  const onImgDrop = (idx: number) => {
+    const from = dragImgIdx.current;
+    dragImgIdx.current = null;
+    setDragOver(null);
+    if (from === null || from === idx) return;
+    setEditing((prev: any) => {
+      const imgs = [...prev.images];
+      const [moved] = imgs.splice(from, 1);
+      imgs.splice(idx, 0, moved);
+      return { ...prev, images: imgs };
+    });
+  };
+
+  // Upload files immediately when selected → add URLs to editing.images
+  const handleImageFilesChange = async (newFiles: File[]) => {
+    const added = newFiles.slice(images.length);
+    if (!added.length) { setImages(newFiles); return; }
+    setImages(newFiles);
+    setUploadingImages(true);
+    try {
+      const formData = new FormData();
+      added.forEach((f) => formData.append('images', f));
+      const res = await api.post('/upload/multiple', formData);
+      setEditing((prev: any) => ({ ...prev, images: [...(prev.images || []), ...res.data.urls] }));
+      setImages([]);
+    } catch (e) {
+      console.error('Upload error', e);
+    } finally {
+      setUploadingImages(false);
+    }
+  };
+
+  // Feature 5: replace single image
+  const replaceImage = async (idx: number, file: File) => {
+    const formData = new FormData();
+    formData.append('images', file);
+    const res = await api.post('/upload/multiple', formData);
+    const newUrl = res.data.urls[0];
+    setEditing((prev: any) => {
+      const imgs = [...prev.images];
+      imgs[idx] = newUrl;
+      return { ...prev, images: imgs };
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -287,14 +361,10 @@ export default function AdminProducts() {
       isCostume: editing.isCostume || false,
       costumeTopId: editing.isCostume ? (editing.costumeTopId ? Number(editing.costumeTopId) : null) : null,
       costumeBottomId: editing.isCostume ? (editing.costumeBottomId ? Number(editing.costumeBottomId) : null) : null,
+      costumeItem3Id: editing.isCostume && extraCostumeSlots >= 1 ? (editing.costumeItem3Id ? Number(editing.costumeItem3Id) : null) : null,
+      costumeItem4Id: editing.isCostume && extraCostumeSlots >= 2 ? (editing.costumeItem4Id ? Number(editing.costumeItem4Id) : null) : null,
+      costumeItem5Id: editing.isCostume && extraCostumeSlots >= 3 ? (editing.costumeItem5Id ? Number(editing.costumeItem5Id) : null) : null,
     };
-
-    if (images.length > 0) {
-      const formData = new FormData();
-      images.forEach((f) => formData.append('images', f));
-      const uploadRes = await api.post('/upload/multiple', formData);
-      data.images = [...(data.images || []), ...uploadRes.data.urls];
-    }
 
     if (editing.id) await api.put(`/products/${editing.id}`, data);
     else await api.post('/products', data);
@@ -311,10 +381,39 @@ export default function AdminProducts() {
     loadAll();
   };
 
+  // Multi-select helpers
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+  const selectAll = () => {
+    if (selectedIds.size === products.length) setSelectedIds(new Set());
+    else setSelectedIds(new Set(products.map((p) => p.id)));
+  };
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const bulkAction = async (action: 'archive' | 'delete') => {
+    if (!selectedIds.size) return;
+    if (action === 'delete' && !confirm(`Удалить ${selectedIds.size} товар(ов)?`)) return;
+    setBulkLoading(true);
+    try {
+      await api.post('/products/bulk', { ids: Array.from(selectedIds), action });
+      clearSelection();
+      load();
+      loadAll();
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
   const inputClass = 'w-full border border-[#E5E5E3] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] transition-colors';
 
   const SkeletonRow = () => (
     <tr className="animate-pulse">
+      <td className="px-4 py-3"><div className="w-4 h-4 bg-[#E8DDD0] rounded" /></td>
       <td className="px-4 py-3"><div className="w-10 h-12 bg-[#E8DDD0] rounded-lg" /></td>
       <td className="px-4 py-3"><div className="h-3 bg-[#E8DDD0] rounded w-40 mb-1" /><div className="h-2.5 bg-[#E8DDD0] rounded w-20" /></td>
       <td className="px-4 py-3"><div className="h-3 bg-[#E8DDD0] rounded w-24" /></td>
@@ -325,12 +424,22 @@ export default function AdminProducts() {
     </tr>
   );
 
+  const costumeSlotLabels = ['Верх', 'Низ', 'Позиция 3', 'Позиция 4', 'Позиция 5'];
+  const costumeSlotKeys = ['costumeTopId', 'costumeBottomId', 'costumeItem3Id', 'costumeItem4Id', 'costumeItem5Id'] as const;
+
   return (
     <AdminLayout>
       {/* Header row */}
       <div className="flex flex-wrap items-center gap-3 mb-5">
         <h1 className="text-xl sm:text-2xl font-semibold">Товары</h1>
         <span className="text-sm text-[#6B6B6B]">{total > 0 && `${total} шт.`}</span>
+        <Link
+          to="/lansadmin/archive"
+          className="flex items-center gap-1.5 text-sm text-[#6B6B6B] hover:text-[#1A1A1A] border border-[#E5E5E3] px-3 py-2 rounded-xl transition-colors"
+        >
+          <HiOutlineArchiveBox className="w-4 h-4" />
+          Архив
+        </Link>
         <button
           onClick={() => startEdit()}
           className="ml-auto flex items-center gap-1.5 bg-[#1A1A1A] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#333] transition-colors"
@@ -340,9 +449,39 @@ export default function AdminProducts() {
         </button>
       </div>
 
+      {/* Bulk action bar */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 bg-[#F5F0EB] border border-[#E5E5E3] rounded-2xl px-4 py-3">
+          <span className="text-sm font-medium text-[#1A1A1A]">Выбрано: {selectedIds.size}</span>
+          <div className="flex gap-2 ml-auto">
+            <button
+              onClick={() => bulkAction('archive')}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-[#1A1A1A] text-white hover:bg-[#333] disabled:opacity-50 transition-colors"
+            >
+              <HiOutlineArchiveBox className="w-4 h-4" />
+              В архив
+            </button>
+            <button
+              onClick={() => bulkAction('delete')}
+              disabled={bulkLoading}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 transition-colors"
+            >
+              <HiOutlineTrash className="w-4 h-4" />
+              Удалить
+            </button>
+            <button
+              onClick={clearSelection}
+              className="px-4 py-2 rounded-xl text-sm border border-[#E5E5E3] hover:bg-white transition-colors"
+            >
+              Отмена
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Filters bar */}
       <div className="flex flex-wrap gap-3 mb-5">
-        {/* Search */}
         <div className="relative flex-1 min-w-[180px] max-w-xs">
           <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6B6B6B]" />
           <input
@@ -358,32 +497,20 @@ export default function AdminProducts() {
           )}
         </div>
 
-        {/* Category filter */}
-        <select
-          value={filterCat}
-          onChange={(e) => setFilterCat(e.target.value)}
-          className="border border-[#E5E5E3] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] bg-white"
-        >
+        <select value={filterCat} onChange={(e) => setFilterCat(e.target.value)}
+          className="border border-[#E5E5E3] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] bg-white">
           <option value="">Все категории</option>
           {categories.map((c) => <option key={c.id} value={c.id}>{c.nameRu}</option>)}
         </select>
 
-        {/* Stock filter */}
-        <select
-          value={filterStock}
-          onChange={(e) => setFilterStock(e.target.value)}
-          className="border border-[#E5E5E3] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] bg-white"
-        >
+        <select value={filterStock} onChange={(e) => setFilterStock(e.target.value)}
+          className="border border-[#E5E5E3] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] bg-white">
           <option value="">Все</option>
           <option value="in">В наличии</option>
         </select>
 
-        {/* Sort */}
-        <select
-          value={sort}
-          onChange={(e) => setSort(e.target.value)}
-          className="border border-[#E5E5E3] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] bg-white"
-        >
+        <select value={sort} onChange={(e) => setSort(e.target.value)}
+          className="border border-[#E5E5E3] rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-[#C4A882] bg-white">
           <option value="new">Сначала новые</option>
           <option value="name">По названию</option>
           <option value="price_asc">Дешевле</option>
@@ -432,7 +559,7 @@ export default function AdminProducts() {
             </div>
           </div>
 
-          {/* Costume checkbox — only after category is chosen */}
+          {/* Costume checkbox */}
           {(editing.categoryId || creatingCategory) && (
             <div>
               <label className="inline-flex items-center gap-2.5 text-sm cursor-pointer select-none group">
@@ -441,43 +568,61 @@ export default function AdminProducts() {
                     <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   )}
                 </div>
-                <input
-                  type="checkbox"
-                  className="sr-only"
-                  checked={editing.isCostume || false}
-                  onChange={(e) => setEditing({ ...editing, isCostume: e.target.checked, costumeTopId: null, costumeBottomId: null })}
+                <input type="checkbox" className="sr-only" checked={editing.isCostume || false}
+                  onChange={(e) => setEditing({
+                    ...editing, isCostume: e.target.checked,
+                    costumeTopId: null, costumeBottomId: null,
+                    costumeItem3Id: null, costumeItem4Id: null, costumeItem5Id: null,
+                  })}
                 />
                 <span className="font-medium">Это костюм / набор</span>
-                <span className="text-[#6B6B6B] font-normal text-xs">(два товара продаются как комплект)</span>
+                <span className="text-[#6B6B6B] font-normal text-xs">(несколько товаров как комплект)</span>
               </label>
             </div>
           )}
 
+          {/* Feature 2: costume items up to 5 */}
           {editing.isCostume && (
             <div className="bg-gradient-to-br from-[#F8F5FC] to-[#F0EBF8] border border-[#D4BFEF] rounded-2xl p-4 space-y-4">
               <p className="text-sm font-medium text-[#7C5C9A]">Состав костюма</p>
-              <p className="text-xs text-[#6B6B6B]">Укажите товары, которые входят в этот комплект. Покупатель сможет купить каждую позицию отдельно или весь костюм сразу.</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs text-[#6B6B6B] mb-1.5 block">Верх (товар)</label>
-                  <ProductPicker
-                    value={editing.costumeTopId}
-                    onChange={(id) => setEditing({ ...editing, costumeTopId: id })}
-                    products={allProducts.filter((p) => p.id !== editing.id && !p.isCostume)}
-                    placeholder="— выберите товар —"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-[#6B6B6B] mb-1.5 block">Низ (товар)</label>
-                  <ProductPicker
-                    value={editing.costumeBottomId}
-                    onChange={(id) => setEditing({ ...editing, costumeBottomId: id })}
-                    products={allProducts.filter((p) => p.id !== editing.id && !p.isCostume)}
-                    placeholder="— выберите товар —"
-                  />
-                </div>
+                {Array.from({ length: 2 + extraCostumeSlots }).map((_, slotIdx) => (
+                  <div key={slotIdx} className="relative">
+                    <label className="text-xs text-[#6B6B6B] mb-1.5 flex items-center justify-between">
+                      <span>{costumeSlotLabels[slotIdx]}</span>
+                      {slotIdx >= 2 && slotIdx === 1 + extraCostumeSlots && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditing({ ...editing, [costumeSlotKeys[slotIdx]]: null });
+                            setExtraCostumeSlots(extraCostumeSlots - 1);
+                          }}
+                          className="text-[#6B6B6B] hover:text-red-500 transition-colors"
+                        >
+                          <HiXMark className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </label>
+                    <ProductPicker
+                      value={editing[costumeSlotKeys[slotIdx]]}
+                      onChange={(id) => setEditing({ ...editing, [costumeSlotKeys[slotIdx]]: id })}
+                      products={allProducts.filter((p) => p.id !== editing.id && !p.isCostume)}
+                      placeholder="— выберите товар —"
+                    />
+                  </div>
+                ))}
               </div>
-              <p className="text-xs text-[#6B6B6B]">Цена костюма (поле «Цена» ниже) — это цена за весь комплект. Если меньше суммы отдельных позиций, покупатель увидит выгоду.</p>
+              {extraCostumeSlots < 3 && (
+                <button
+                  type="button"
+                  onClick={() => setExtraCostumeSlots(extraCostumeSlots + 1)}
+                  className="flex items-center gap-1.5 text-xs text-[#7C5C9A] hover:text-[#5C3A7A] transition-colors font-medium"
+                >
+                  <HiOutlinePlus className="w-3.5 h-3.5" />
+                  Добавить ещё
+                </button>
+              )}
+              <p className="text-xs text-[#6B6B6B]">Цена костюма ниже — за весь комплект.</p>
             </div>
           )}
 
@@ -513,12 +658,8 @@ export default function AdminProducts() {
                     НБ РБ: 1$ = {rates.usd.toFixed(4)} BYN · 100₽ = {rates.rub100.toFixed(4)} BYN
                   </span>
                 )}
-                <button
-                  type="button"
-                  onClick={refreshRates}
-                  title="Обновить курс НБ РБ"
-                  className="flex items-center gap-1 text-[11px] text-[#C4A882] hover:text-[#A68E6A] transition-colors"
-                >
+                <button type="button" onClick={refreshRates} title="Обновить курс НБ РБ"
+                  className="flex items-center gap-1 text-[11px] text-[#C4A882] hover:text-[#A68E6A] transition-colors">
                   <HiArrowPath className={`w-3.5 h-3.5 ${ratesLoading ? 'animate-spin' : ''}`} />
                   {rates ? 'Обновить' : 'Загрузить курс'}
                 </button>
@@ -543,13 +684,10 @@ export default function AdminProducts() {
                   className={`${inputClass} pr-8`} />
                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-[#6B6B6B] font-medium">₽</span>
               </div>
-              <button
-                type="button"
-                onClick={calcPrices}
+              <button type="button" onClick={calcPrices}
                 disabled={!rates || (!editing.priceByn && !editing.priceUsd)}
                 title={rates ? 'Рассчитать пустые поля по курсу НБ РБ' : 'Курс не загружен'}
-                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#E5E5E3] text-sm hover:border-[#C4A882] hover:text-[#C4A882] transition-colors disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0"
-              >
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-[#E5E5E3] text-sm hover:border-[#C4A882] hover:text-[#C4A882] transition-colors disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap flex-shrink-0">
                 <HiArrowsRightLeft className="w-4 h-4" />
                 Рассчитать
               </button>
@@ -605,23 +743,89 @@ export default function AdminProducts() {
             </label>
           </div>
 
+          {/* Feature 1 + 5: Images with drag, main star, replace */}
           <div>
             <p className="text-sm font-medium mb-2">Фотографии</p>
             {editing.images?.length > 0 && (
-              <div className="flex gap-2 flex-wrap mb-3">
+              <div className="flex gap-3 flex-wrap mb-3">
                 {editing.images.map((img: string, i: number) => (
-                  <div key={i} className="relative group">
-                    <ImgWithSkeleton src={img} className="w-16 h-20 rounded-lg border border-[#E5E5E3]" />
-                    <button type="button"
-                      onClick={() => setEditing({ ...editing, images: editing.images.filter((_: string, j: number) => j !== i) })}
-                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white w-5 h-5 rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                      <HiXMark className="w-3 h-3" />
-                    </button>
+                  <div
+                    key={i}
+                    className={`flex flex-col items-center gap-1.5 cursor-grab active:cursor-grabbing select-none transition-opacity ${dragOver === i ? 'opacity-40 ring-2 ring-[#C4A882] rounded-xl' : ''}`}
+                    draggable
+                    onDragStart={() => onImgDragStart(i)}
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(i); }}
+                    onDragLeave={() => setDragOver(null)}
+                    onDrop={() => onImgDrop(i)}
+                    onDragEnd={() => { dragImgIdx.current = null; setDragOver(null); }}
+                  >
+                    {/* Image + main badge */}
+                    <div className="relative">
+                      <ImgWithSkeleton src={img} className="w-16 h-20 rounded-lg border border-[#E5E5E3]" />
+                      {i === 0 && (
+                        <span className="absolute top-0.5 left-0.5 bg-[#C4A882] text-white text-[9px] px-1 py-0.5 rounded font-medium leading-none pointer-events-none">
+                          Гл.
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Always-visible controls */}
+                    <div className="flex gap-1">
+                      {i !== 0 && (
+                        <button
+                          type="button"
+                          title="Сделать главной"
+                          onClick={() => setMainImage(i)}
+                          className="w-7 h-7 rounded-lg bg-[#F5F0EB] hover:bg-[#C4A882] hover:text-white text-[#C4A882] flex items-center justify-center transition-colors"
+                        >
+                          <HiStar className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        title="Заменить фото"
+                        onClick={() => replaceRefs.current[i]?.click()}
+                        className="w-7 h-7 rounded-lg bg-[#F5F0EB] hover:bg-[#1A1A1A] hover:text-white text-[#6B6B6B] flex items-center justify-center transition-colors"
+                      >
+                        <HiOutlinePencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        title="Удалить"
+                        onClick={() => setEditing((prev: any) => ({ ...prev, images: prev.images.filter((_: string, j: number) => j !== i) }))}
+                        className="w-7 h-7 rounded-lg bg-red-50 hover:bg-red-500 hover:text-white text-red-400 flex items-center justify-center transition-colors"
+                      >
+                        <HiXMark className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    {/* Hidden file input for replace */}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={(el) => { replaceRefs.current[i] = el; }}
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) await replaceImage(i, file);
+                        e.target.value = '';
+                      }}
+                    />
                   </div>
                 ))}
               </div>
             )}
-            <FileUpload files={images} onChange={setImages} />
+            {editing.images?.length > 1 && (
+              <p className="text-[11px] text-[#6B6B6B] mb-2">⠿ Перетащите для изменения порядка · ⭐ главная · ✏ заменить</p>
+            )}
+            <div className="relative">
+              <FileUpload files={images} onChange={handleImageFilesChange} />
+              {uploadingImages && (
+                <div className="absolute inset-0 bg-white/70 rounded-xl flex items-center justify-center">
+                  <HiArrowPath className="w-5 h-5 text-[#C4A882] animate-spin" />
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -649,9 +853,23 @@ export default function AdminProducts() {
         ) : products.map((p) => {
           const colors = parseColors(p.colors || []);
           const labels = p.labels || (p.isNew ? ['NEW'] : []);
+          const isSelected = selectedIds.has(p.id);
           return (
-            <div key={p.id} className="bg-white rounded-2xl p-4 border border-[#E5E5E3]">
+            <div
+              key={p.id}
+              className={`bg-white rounded-2xl p-4 border transition-colors ${isSelected ? 'border-[#C4A882] bg-[#FDFAF7]' : 'border-[#E5E5E3]'}`}
+            >
               <div className="flex gap-3">
+                {/* Checkbox */}
+                <div className="flex-shrink-0 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleSelect(p.id)}
+                    className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-[#C4A882] border-[#C4A882]' : 'border-[#D1D5DB]'}`}
+                  >
+                    {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                  </button>
+                </div>
                 {p.images[0]
                   ? <ImgWithSkeleton src={p.images[0]} className="w-16 h-20 rounded-lg flex-shrink-0" />
                   : <div className="w-16 h-20 bg-[#F5F0EB] rounded-lg flex items-center justify-center text-xs text-[#C4A882] flex-shrink-0">LS</div>
@@ -692,6 +910,20 @@ export default function AdminProducts() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50/80">
             <tr>
+              <th className="text-left px-4 py-3.5 font-medium text-[#6B6B6B] w-10">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.size === products.length && products.length > 0 ? 'bg-[#C4A882] border-[#C4A882]' : 'border-[#D1D5DB]'}`}
+                >
+                  {selectedIds.size === products.length && products.length > 0 && (
+                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  )}
+                  {selectedIds.size > 0 && selectedIds.size < products.length && (
+                    <div className="w-2 h-0.5 bg-[#C4A882]" />
+                  )}
+                </button>
+              </th>
               <th className="text-left px-4 py-3.5 font-medium text-[#6B6B6B]">Фото</th>
               <th className="text-left px-4 py-3.5 font-medium text-[#6B6B6B]">Название</th>
               <th className="text-left px-4 py-3.5 font-medium text-[#6B6B6B]">Категория</th>
@@ -707,8 +939,18 @@ export default function AdminProducts() {
               : products.map((p) => {
                 const colors = parseColors(p.colors || []);
                 const labels = p.labels || (p.isNew ? ['NEW'] : []);
+                const isSelected = selectedIds.has(p.id);
                 return (
-                  <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+                  <tr key={p.id} className={`transition-colors ${isSelected ? 'bg-[#FDFAF7]' : 'hover:bg-gray-50/50'}`}>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleSelect(p.id)}
+                        className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${isSelected ? 'bg-[#C4A882] border-[#C4A882]' : 'border-[#D1D5DB]'}`}
+                      >
+                        {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 12 12"><path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                      </button>
+                    </td>
                     <td className="px-4 py-3">
                       {p.images[0]
                         ? <ImgWithSkeleton src={p.images[0]} className="w-10 h-12 rounded-lg" />
@@ -740,7 +982,7 @@ export default function AdminProducts() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right">
+                    <td className="px-4 py-3 text-right whitespace-nowrap">
                       <button onClick={() => startEdit(p)} className="text-[#C4A882] hover:underline mr-3">Ред.</button>
                       <button onClick={() => handleDelete(p.id)} className="text-red-500 hover:underline">Удалить</button>
                     </td>
@@ -757,11 +999,8 @@ export default function AdminProducts() {
         <div className="flex flex-col items-center gap-2 mt-5">
           <p className="text-sm text-[#6B6B6B]">Стр. {page} из {totalPages}</p>
           <div className="flex items-center gap-1">
-            <button
-              disabled={page === 1}
-              onClick={() => setPage(page - 1)}
-              className="p-2 rounded-lg border border-[#E5E5E3] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
+            <button disabled={page === 1} onClick={() => setPage(page - 1)}
+              className="p-2 rounded-lg border border-[#E5E5E3] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <HiChevronLeft className="w-4 h-4" />
             </button>
             {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -771,20 +1010,14 @@ export default function AdminProducts() {
               else if (page >= totalPages - 2) n = totalPages - 4 + i;
               else n = page - 2 + i;
               return (
-                <button
-                  key={n}
-                  onClick={() => setPage(n)}
-                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${n === page ? 'bg-[#1A1A1A] text-white' : 'border border-[#E5E5E3] hover:bg-gray-50'}`}
-                >
+                <button key={n} onClick={() => setPage(n)}
+                  className={`w-9 h-9 rounded-lg text-sm font-medium transition-colors ${n === page ? 'bg-[#1A1A1A] text-white' : 'border border-[#E5E5E3] hover:bg-gray-50'}`}>
                   {n}
                 </button>
               );
             })}
-            <button
-              disabled={page === totalPages}
-              onClick={() => setPage(page + 1)}
-              className="p-2 rounded-lg border border-[#E5E5E3] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
+            <button disabled={page === totalPages} onClick={() => setPage(page + 1)}
+              className="p-2 rounded-lg border border-[#E5E5E3] hover:bg-gray-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
               <HiChevronRight className="w-4 h-4" />
             </button>
           </div>

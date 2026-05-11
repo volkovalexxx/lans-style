@@ -4,7 +4,6 @@ import { authMiddleware } from '../middleware/auth';
 
 const router = Router();
 
-// Transliterate Russian to Latin for auto-slug
 function transliterate(str: string): string {
   const map: Record<string, string> = {
     а:'a',б:'b',в:'v',г:'g',д:'d',е:'e',ё:'yo',ж:'zh',з:'z',и:'i',й:'y',
@@ -29,10 +28,9 @@ async function generateSlug(name: string): Promise<string> {
   return slug;
 }
 
-// Public: get filter options (all unique sizes, colors, price range)
 router.get('/filters', async (req, res) => {
   const { categoryId } = req.query;
-  const where: any = {};
+  const where: any = { isArchived: false };
   if (categoryId) where.categoryId = Number(categoryId);
 
   const products = await prisma.product.findMany({
@@ -71,18 +69,16 @@ router.get('/filters', async (req, res) => {
   });
 });
 
-// Public: list products with filtering
 router.get('/', async (req, res) => {
   const { categoryId, isNew, inStock, search, sort, page = '1', limit = '12',
-          size, color, priceMin, priceMax, label } = req.query;
+          size, color, priceMin, priceMax, label, archived } = req.query;
 
-  // Support both single value and array: ?size=42&size=44 or ?size=42
   const toArray = (v: any): string[] =>
     !v ? [] : Array.isArray(v) ? v.map(String) : [String(v)];
   const sizes = toArray(size);
   const colors = toArray(color);
 
-  const where: any = {};
+  const where: any = { isArchived: archived === 'true' ? true : false };
   if (categoryId) where.categoryId = Number(categoryId);
   if (isNew === 'true') where.isNew = true;
   if (inStock === 'true') where.inStock = true;
@@ -123,7 +119,6 @@ router.get('/', async (req, res) => {
   res.json({ products, total, page: Number(page), pages: Math.ceil(total / Number(limit)) });
 });
 
-// Public: get product by slug
 router.get('/:slug', async (req, res) => {
   const product = await prisma.product.findUnique({
     where: { slug: req.params.slug },
@@ -131,6 +126,9 @@ router.get('/:slug', async (req, res) => {
       category: true,
       costumeTop: true,
       costumeBottom: true,
+      costumeItem3: true,
+      costumeItem4: true,
+      costumeItem5: true,
     },
   });
   if (!product) {
@@ -139,30 +137,21 @@ router.get('/:slug', async (req, res) => {
   }
 
   prisma.pageVisit.create({
-    data: {
-      page: `/product/${req.params.slug}`,
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    },
+    data: { page: `/product/${req.params.slug}`, ip: req.ip, userAgent: req.headers['user-agent'] },
   }).catch(() => {});
 
   res.json(product);
 });
 
-// Admin: create product (auto-generate slug if not provided)
 router.post('/', authMiddleware, async (req, res) => {
   const data = { ...req.body };
   if (!data.slug) {
     data.slug = await generateSlug(data.nameRu || data.nameEn || 'product');
   }
-  const product = await prisma.product.create({
-    data,
-    include: { category: true },
-  });
+  const product = await prisma.product.create({ data, include: { category: true } });
   res.status(201).json(product);
 });
 
-// Admin: update product
 router.put('/:id', authMiddleware, async (req, res) => {
   const product = await prisma.product.update({
     where: { id: Number(req.params.id) },
@@ -172,7 +161,35 @@ router.put('/:id', authMiddleware, async (req, res) => {
   res.json(product);
 });
 
-// Admin: delete product (cascade: also removes its order items)
+// Bulk actions: archive / unarchive / delete
+router.post('/bulk', authMiddleware, async (req, res) => {
+  const { ids, action } = req.body as { ids: number[]; action: 'archive' | 'unarchive' | 'delete' };
+  if (!Array.isArray(ids) || !ids.length) {
+    res.status(400).json({ error: 'ids required' });
+    return;
+  }
+
+  try {
+    if (action === 'archive') {
+      await prisma.product.updateMany({ where: { id: { in: ids } }, data: { isArchived: true } });
+    } else if (action === 'unarchive') {
+      await prisma.product.updateMany({ where: { id: { in: ids } }, data: { isArchived: false } });
+    } else if (action === 'delete') {
+      await prisma.$transaction(async (tx) => {
+        await tx.orderItem.deleteMany({ where: { productId: { in: ids } } });
+        await tx.product.deleteMany({ where: { id: { in: ids } } });
+      });
+    } else {
+      res.status(400).json({ error: 'unknown action' });
+      return;
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Bulk action error:', err);
+    res.status(500).json({ error: err.message || 'Bulk action failed' });
+  }
+});
+
 router.delete('/:id', authMiddleware, async (req, res) => {
   const id = Number(req.params.id);
   try {

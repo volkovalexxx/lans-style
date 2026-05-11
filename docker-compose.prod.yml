@@ -4,12 +4,11 @@ services:
     container_name: lans_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-lans_style}
-      POSTGRES_USER: ${POSTGRES_USER:-lans}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lans_secret}
+      POSTGRES_DB: lans_style
+      POSTGRES_USER: lans
+      POSTGRES_PASSWORD: lans_secret
     volumes:
       - pgdata:/var/lib/postgresql/data
-
   server:
     build:
       context: ./server
@@ -17,19 +16,23 @@ services:
     container_name: lans_server
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-lans}:${POSTGRES_PASSWORD:-lans_secret}@postgres:5432/${POSTGRES_DB:-lans_style}
+      DATABASE_URL: postgresql://lans:lans_secret@postgres:5432/lans_style
       PORT: 5000
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      ADMIN_LOGIN: ${ADMIN_LOGIN:-admin}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
-      TELEGRAM_ADMIN_IDS: ${TELEGRAM_ADMIN_IDS:-}
+      JWT_SECRET: lans-jwt-secret-prod
+      ADMIN_LOGIN: lans-admin
+      ADMIN_PASSWORD: n3I2D~uVU
       NODE_ENV: production
+      TELEGRAM_BOT_TOKEN: 8625164504:AAF1PGjomSfow53IBJ2Lyax0bxDiPLSvghA
+      TELEGRAM_ADMIN_IDS: "7506120714"
+      SMTP_HOST: smtp.gmail.com
+      SMTP_PORT: "465"
+      SMTP_USER: opt.lansstyle@gmail.com
+      SMTP_PASS: cfxfxopbxgupkuex
+      EMAIL_FROM: "Lans Style <opt.lansstyle@gmail.com>"
     volumes:
       - ./server/uploads:/app/uploads
     depends_on:
       - postgres
-
   client:
     build:
       context: ./client
@@ -37,9 +40,11 @@ services:
     container_name: lans_client
     restart: unless-stopped
     ports:
-      - '80:80'
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /etc/letsencrypt:/etc/letsencrypt:ro
     depends_on:
       - server
-
 volumes:
   pgdata:

@@ -41,13 +41,23 @@ model Product {
   orderItems OrderItem[]
   createdAt  DateTime    @default(now())
 
-  isCostume       Boolean  @default(false)
-  costumeTopId    Int?
-  costumeBottomId Int?
-  costumeTop      Product?  @relation("CostumeTop",    fields: [costumeTopId],    references: [id], onDelete: SetNull)
-  costumeBottom   Product?  @relation("CostumeBottom", fields: [costumeBottomId], references: [id], onDelete: SetNull)
-  usedAsTop       Product[] @relation("CostumeTop")
-  usedAsBottom    Product[] @relation("CostumeBottom")
+  isCostume        Boolean   @default(false)
+  isArchived       Boolean   @default(false)
+  costumeTopId     Int?
+  costumeBottomId  Int?
+  costumeItem3Id   Int?
+  costumeItem4Id   Int?
+  costumeItem5Id   Int?
+  costumeTop       Product?  @relation("CostumeTop",    fields: [costumeTopId],    references: [id], onDelete: SetNull)
+  costumeBottom    Product?  @relation("CostumeBottom", fields: [costumeBottomId], references: [id], onDelete: SetNull)
+  costumeItem3     Product?  @relation("CostumeItem3",  fields: [costumeItem3Id],  references: [id], onDelete: SetNull)
+  costumeItem4     Product?  @relation("CostumeItem4",  fields: [costumeItem4Id],  references: [id], onDelete: SetNull)
+  costumeItem5     Product?  @relation("CostumeItem5",  fields: [costumeItem5Id],  references: [id], onDelete: SetNull)
+  usedAsTop        Product[] @relation("CostumeTop")
+  usedAsBottom     Product[] @relation("CostumeBottom")
+  usedAsItem3      Product[] @relation("CostumeItem3")
+  usedAsItem4      Product[] @relation("CostumeItem4")
+  usedAsItem5      Product[] @relation("CostumeItem5")
 }
 
 model Order {
