@@ -28,10 +28,29 @@ async function generateSlug(name: string): Promise<string> {
   return slug;
 }
 
+async function syncAdditionalCategories(productId: number, ids: number[]) {
+  await prisma.productCategory.deleteMany({ where: { productId } });
+  if (ids.length) {
+    await prisma.productCategory.createMany({
+      data: ids.map((categoryId) => ({ productId, categoryId })),
+      skipDuplicates: true,
+    });
+  }
+}
+
 router.get('/filters', async (req, res) => {
   const { categoryId } = req.query;
-  const where: any = { isArchived: false };
-  if (categoryId) where.categoryId = Number(categoryId);
+
+  const conditions: any[] = [{ isArchived: false }];
+  if (categoryId) {
+    conditions.push({
+      OR: [
+        { categoryId: Number(categoryId) },
+        { additionalCategories: { some: { categoryId: Number(categoryId) } } },
+      ],
+    });
+  }
+  const where = { AND: conditions };
 
   const products = await prisma.product.findMany({
     where,
@@ -78,25 +97,38 @@ router.get('/', async (req, res) => {
   const sizes = toArray(size);
   const colors = toArray(color);
 
-  const where: any = { isArchived: archived === 'true' ? true : false };
-  if (categoryId) where.categoryId = Number(categoryId);
-  if (isNew === 'true') where.isNew = true;
-  if (inStock === 'true') where.inStock = true;
+  const conditions: any[] = [{ isArchived: archived === 'true' ? true : false }];
+
+  if (categoryId) {
+    conditions.push({
+      OR: [
+        { categoryId: Number(categoryId) },
+        { additionalCategories: { some: { categoryId: Number(categoryId) } } },
+      ],
+    });
+  }
+  if (isNew === 'true') conditions.push({ isNew: true });
+  if (inStock === 'true') conditions.push({ inStock: true });
   if (search) {
-    where.OR = [
-      { nameRu: { contains: String(search), mode: 'insensitive' } },
-      { nameEn: { contains: String(search), mode: 'insensitive' } },
-      { sku: { contains: String(search), mode: 'insensitive' } },
-    ];
+    conditions.push({
+      OR: [
+        { nameRu: { contains: String(search), mode: 'insensitive' } },
+        { nameEn: { contains: String(search), mode: 'insensitive' } },
+        { sku: { contains: String(search), mode: 'insensitive' } },
+      ],
+    });
   }
-  if (sizes.length) where.sizes = { hasSome: sizes };
-  if (colors.length) where.colors = { hasSome: colors };
-  if (label) where.labels = { has: String(label) };
+  if (sizes.length) conditions.push({ sizes: { hasSome: sizes } });
+  if (colors.length) conditions.push({ colors: { hasSome: colors } });
+  if (label) conditions.push({ labels: { has: String(label) } });
   if (priceMin || priceMax) {
-    where.priceByn = {};
-    if (priceMin) where.priceByn.gte = Number(priceMin);
-    if (priceMax) where.priceByn.lte = Number(priceMax);
+    const priceCond: any = {};
+    if (priceMin) priceCond.gte = Number(priceMin);
+    if (priceMax) priceCond.lte = Number(priceMax);
+    conditions.push({ priceByn: priceCond });
   }
+
+  const where = { AND: conditions };
 
   let orderBy: any = { createdAt: 'desc' };
   if (sort === 'price_asc') orderBy = { priceByn: 'asc' };
@@ -111,7 +143,10 @@ router.get('/', async (req, res) => {
       orderBy,
       skip,
       take: Number(limit),
-      include: { category: true },
+      include: {
+        category: true,
+        additionalCategories: { select: { categoryId: true } },
+      },
     }),
     prisma.product.count({ where }),
   ]);
@@ -124,6 +159,7 @@ router.get('/:slug', async (req, res) => {
     where: { slug: req.params.slug },
     include: {
       category: true,
+      additionalCategories: { include: { category: true } },
       costumeTop: true,
       costumeBottom: true,
       costumeItem3: true,
@@ -144,20 +180,25 @@ router.get('/:slug', async (req, res) => {
 });
 
 router.post('/', authMiddleware, async (req, res) => {
-  const data = { ...req.body };
-  if (!data.slug) {
-    data.slug = await generateSlug(data.nameRu || data.nameEn || 'product');
+  const { additionalCategoryIds, ...rest } = req.body;
+  if (!rest.slug) {
+    rest.slug = await generateSlug(rest.nameRu || rest.nameEn || 'product');
   }
-  const product = await prisma.product.create({ data, include: { category: true } });
+  const product = await prisma.product.create({ data: rest, include: { category: true } });
+  if (Array.isArray(additionalCategoryIds) && additionalCategoryIds.length) {
+    await syncAdditionalCategories(product.id, additionalCategoryIds.map(Number));
+  }
   res.status(201).json(product);
 });
 
 router.put('/:id', authMiddleware, async (req, res) => {
+  const { additionalCategoryIds, ...rest } = req.body;
   const product = await prisma.product.update({
     where: { id: Number(req.params.id) },
-    data: req.body,
+    data: rest,
     include: { category: true },
   });
+  await syncAdditionalCategories(product.id, Array.isArray(additionalCategoryIds) ? additionalCategoryIds.map(Number) : []);
   res.json(product);
 });
 

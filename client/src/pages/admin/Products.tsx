@@ -97,6 +97,7 @@ const emptyProduct = {
   costumeItem3Id: null as number | null,
   costumeItem4Id: null as number | null,
   costumeItem5Id: null as number | null,
+  additionalCategoryIds: [] as number[],
 };
 
 function ImgWithSkeleton({ src, className }: { src: string; className: string }) {
@@ -235,6 +236,7 @@ export default function AdminProducts() {
         costumeItem3Id: product.costumeItem3Id || null,
         costumeItem4Id: product.costumeItem4Id || null,
         costumeItem5Id: product.costumeItem5Id || null,
+        additionalCategoryIds: (product.additionalCategories || []).map((ac: any) => ac.categoryId),
       });
       setEditColors(parseColors(product.colors || []));
       setEditLabels(product.labels || []);
@@ -364,6 +366,7 @@ export default function AdminProducts() {
       costumeItem3Id: editing.isCostume && extraCostumeSlots >= 1 ? (editing.costumeItem3Id ? Number(editing.costumeItem3Id) : null) : null,
       costumeItem4Id: editing.isCostume && extraCostumeSlots >= 2 ? (editing.costumeItem4Id ? Number(editing.costumeItem4Id) : null) : null,
       costumeItem5Id: editing.isCostume && extraCostumeSlots >= 3 ? (editing.costumeItem5Id ? Number(editing.costumeItem5Id) : null) : null,
+      additionalCategoryIds: (editing.additionalCategoryIds || []).filter((id: number) => id !== categoryId),
     };
 
     if (editing.id) await api.put(`/products/${editing.id}`, data);
@@ -558,6 +561,42 @@ export default function AdminProducts() {
               <input placeholder="42, 44, 46, 48, 50" value={editing.sizes} onChange={(e) => setEditing({ ...editing, sizes: e.target.value })} className={inputClass} />
             </div>
           </div>
+
+          {/* Additional categories */}
+          {categories.length > 1 && (
+            <div>
+              <label className="text-xs text-[#6B6B6B] mb-2 block">Также показывать в категориях</label>
+              <div className="flex flex-wrap gap-2">
+                {categories
+                  .filter((c) => c.id !== Number(editing.categoryId))
+                  .map((c) => {
+                    const selected = (editing.additionalCategoryIds || []).includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => {
+                          const prev: number[] = editing.additionalCategoryIds || [];
+                          setEditing({
+                            ...editing,
+                            additionalCategoryIds: selected
+                              ? prev.filter((id: number) => id !== c.id)
+                              : [...prev, c.id],
+                          });
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors ${
+                          selected
+                            ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]'
+                            : 'border-[#E5E5E3] text-[#6B6B6B] hover:border-[#C4A882] hover:text-[#1A1A1A]'
+                        }`}
+                      >
+                        {c.nameRu}
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
 
           {/* Costume checkbox */}
           {(editing.categoryId || creatingCategory) && (

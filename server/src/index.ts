@@ -12,6 +12,7 @@ import adminRouter from './routes/admin';
 import uploadRouter from './routes/upload';
 import pagesRouter from './routes/pages';
 import settingsRouter from './routes/settings';
+import homeCardsRouter from './routes/homeCards';
 import { startBot } from './bot';
 
 export const prisma = new PrismaClient();
@@ -32,6 +33,7 @@ app.use('/api/admin', adminRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/pages', pagesRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/home-cards', homeCardsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

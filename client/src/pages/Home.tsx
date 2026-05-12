@@ -14,7 +14,7 @@ import { useApi } from '../hooks/useApi';
 export default function Home() {
   const { t, i18n } = useTranslation();
   const isRu = i18n.language === 'ru';
-  const { data: categories, loading: catsLoading } = useApi<any[]>('/categories');
+  const { data: homeCards, loading: catsLoading } = useApi<any[]>('/home-cards');
   const { data: newProductsData } = useApi<{ products: any[] }>('/products', { isNew: 'true', limit: '8' });
   const { data: latestProductsData, loading: latestLoading } = useApi<{ products: any[] }>('/products', { limit: '8', sort: 'new' });
 
@@ -24,8 +24,8 @@ export default function Home() {
     : latestProductsData;
   const productsLoading = !productsData && latestLoading;
 
-  const featured = categories?.[0];
-  const rest = categories?.slice(1, 5) || [];
+  const featured = homeCards?.[0];
+  const rest = homeCards?.slice(1, 5) || [];
 
   const usps = [
     { icon: HiOutlineSparkles, title: t('home.usp_quality_title'), desc: t('home.usp_quality_desc') },
@@ -226,19 +226,21 @@ export default function Home() {
             </>
           ) : (
             <>
-              {featured && (
+              {featured && featured.category && (
                 <BentoCategoryCard
-                  category={featured}
-                  name={isRu ? featured.nameRu : featured.nameEn}
+                  category={featured.category}
+                  overrideImage={featured.resolvedImage}
+                  name={isRu ? featured.category.nameRu : featured.category.nameEn}
                   featured
                   className="col-span-2 row-span-2"
                 />
               )}
-              {rest.map((cat) => (
+              {rest.map((card) => card.category && (
                 <BentoCategoryCard
-                  key={cat.id}
-                  category={cat}
-                  name={isRu ? cat.nameRu : cat.nameEn}
+                  key={card.id}
+                  category={card.category}
+                  overrideImage={card.resolvedImage}
+                  name={isRu ? card.category.nameRu : card.category.nameEn}
                   className="col-span-1 row-span-1"
                 />
               ))}
@@ -277,13 +279,14 @@ interface BentoProps {
     previewImage?: string | null;
     _count?: { products: number };
   };
+  overrideImage?: string | null;
   name: string;
   featured?: boolean;
   className?: string;
 }
 
-function BentoCategoryCard({ category, name, featured, className = '' }: BentoProps) {
-  const backgroundImage = category.image || category.previewImage;
+function BentoCategoryCard({ category, overrideImage, name, featured, className = '' }: BentoProps) {
+  const backgroundImage = overrideImage || category.image || category.previewImage;
 
   return (
     <motion.div

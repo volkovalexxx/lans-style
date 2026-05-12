@@ -9,14 +9,16 @@ datasource db {
 }
 
 model Category {
-  id        Int       @id @default(autoincrement())
-  slug      String    @unique
-  nameRu    String
-  nameEn    String
-  image     String?
-  order     Int       @default(0)
-  products  Product[]
-  createdAt DateTime  @default(now())
+  id                 Int                @id @default(autoincrement())
+  slug               String             @unique
+  nameRu             String
+  nameEn             String
+  image              String?
+  order              Int                @default(0)
+  products           Product[]
+  additionalProducts ProductCategory[]
+  homeCards          HomeCategoryCard[]
+  createdAt          DateTime           @default(now())
 }
 
 model Product {
@@ -41,8 +43,9 @@ model Product {
   orderItems OrderItem[]
   createdAt  DateTime    @default(now())
 
-  isCostume        Boolean   @default(false)
-  isArchived       Boolean   @default(false)
+  isCostume            Boolean           @default(false)
+  isArchived           Boolean           @default(false)
+  additionalCategories ProductCategory[]
   costumeTopId     Int?
   costumeBottomId  Int?
   costumeItem3Id   Int?
@@ -106,6 +109,23 @@ model Admin {
   id       Int    @id @default(autoincrement())
   login    String @unique
   password String
+}
+
+model ProductCategory {
+  productId  Int
+  categoryId Int
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@id([productId, categoryId])
+}
+
+model HomeCategoryCard {
+  id          Int       @id @default(autoincrement())
+  position    Int       @unique
+  categoryId  Int?
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  imageUrl    String?
+  imageSource String    @default("latest")
 }
 
 model SitePage {
