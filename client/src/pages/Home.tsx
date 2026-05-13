@@ -42,7 +42,7 @@ export default function Home() {
       {/* Banner */}
       <section className="relative h-[75vh] min-h-[540px] bg-[#1A1A1A] flex items-center overflow-hidden">
         <video src="/hero.mov" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover object-center md:hidden" />
-        <img src="/hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover hidden md:block" style={{ objectPosition: '50% 35%' }} />
+        <img src="/hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover hidden md:block" style={{ objectPosition: '60% 35%' }} />
         <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A1A]/70 via-[#1A1A1A]/30 to-transparent z-10" />
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 w-full">
           <motion.p
