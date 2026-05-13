@@ -41,9 +41,23 @@ export default function Home() {
     <div>
       {/* Banner */}
       <section className="relative h-[75vh] min-h-[540px] bg-[#1A1A1A] flex items-center overflow-hidden">
+        {/* Desktop only: #DBDBDB background */}
+        <div className="absolute inset-0 hidden md:block" style={{ backgroundColor: '#DBDBDB' }} />
+
+        {/* Mobile: full-width video (unchanged) */}
         <video src="/hero.mov" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover object-center md:hidden" />
-        <img src="/hero.jpg" alt="" className="absolute inset-0 w-full h-full object-cover hidden md:block" style={{ objectPosition: '75% 35%' }} />
+
+        {/* Desktop: image pinned to right, 70% width */}
+        <div className="absolute right-0 top-0 h-full hidden md:block" style={{ width: '70%' }}>
+          <img src="/hero.jpg" alt="" className="w-full h-full object-cover" style={{ objectPosition: '50% 35%' }} />
+          {/* Seamless fade from #DBDBDB into image */}
+          <div className="absolute inset-y-0 left-0 pointer-events-none" style={{ width: '280px', background: 'linear-gradient(to right, #DBDBDB, transparent)' }} />
+        </div>
+
+        {/* Dark overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A1A]/70 via-[#1A1A1A]/30 to-transparent z-10" />
+
+        {/* Content — unchanged */}
         <div className="relative z-20 max-w-7xl mx-auto px-4 sm:px-6 w-full">
           <motion.p
             initial={{ opacity: 0, y: 20 }}
