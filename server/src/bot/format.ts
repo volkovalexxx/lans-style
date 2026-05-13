@@ -21,6 +21,8 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+const SITE_URL = 'https://lans-style.by';
+
 export function formatOrder(order: {
   id: number;
   name: string;
@@ -29,15 +31,36 @@ export function formatOrder(order: {
   comment?: string | null;
   status: string;
   createdAt: Date | string;
-  items: Array<{ product: { nameRu: string }; size?: string | null; color?: string | null; quantity: number }>;
+  items: Array<{
+    product: { nameRu: string; slug?: string; priceByn?: any; priceUsd?: any };
+    size?: string | null;
+    color?: string | null;
+    quantity: number;
+  }>;
 }, opts: { header?: boolean } = {}): string {
   const date = new Date(order.createdAt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
+
+  let total = 0;
   const items = order.items
     .map((i) => {
+      const name = esc(i.product.nameRu);
+      const link = i.product.slug
+        ? `<a href="${SITE_URL}/product/${i.product.slug}">🔗 ${name}</a>`
+        : `🔗 ${name}`;
+      const qty = i.quantity > 1 ? ` ×${i.quantity}` : '';
       const extras = [i.size, formatColor(i.color)].filter(Boolean).join(' · ');
-      return `  • ${esc(i.product.nameRu)} ×${i.quantity}${extras ? ` — ${esc(extras)}` : ''}`;
+      const priceByn = Number(i.product.priceByn || 0);
+      const priceUsd = Number(i.product.priceUsd || 0);
+      const lineTotal = priceByn * i.quantity;
+      total += lineTotal;
+      const priceStr = priceByn
+        ? ` — ${lineTotal} BYN${priceUsd ? ` / ${(priceUsd * i.quantity).toFixed(2)} $` : ''}`
+        : '';
+      return `  • ${link}${qty}${extras ? ` (${esc(extras)})` : ''}${priceStr}`;
     })
     .join('\n');
+
+  const totalStr = total > 0 ? `\n💵 <b>Итого: ${total} BYN</b>` : '';
 
   const header = opts.header === false ? '' : `🛒 <b>ЗАКАЗ #${order.id}</b>\n`;
   const lines = [
@@ -49,7 +72,7 @@ export function formatOrder(order: {
   ];
   if (order.email) lines.push(`📧 ${esc(order.email)}`);
   if (order.comment) lines.push(`💬 ${esc(order.comment)}`);
-  lines.push('', '📦 <b>Товары:</b>', items);
+  lines.push('', '📦 <b>Товары:</b>', items, totalStr);
 
   return lines.join('\n');
 }

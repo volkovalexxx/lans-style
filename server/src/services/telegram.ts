@@ -23,7 +23,7 @@ export async function notifyNewOrder(order: {
   status: string;
   createdAt: Date | string;
   items: Array<{
-    product: { nameRu: string; images?: string[] };
+    product: { nameRu: string; slug?: string; priceByn?: any; priceUsd?: any; images?: string[] };
     size?: string | null;
     color?: string | null;
     quantity: number;
