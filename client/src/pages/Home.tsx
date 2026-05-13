@@ -49,7 +49,7 @@ export default function Home() {
 
         {/* Desktop: image pinned to right, 70% width */}
         <div className="absolute right-0 top-0 h-full hidden md:block" style={{ width: '70%' }}>
-          <img src="/hero.jpg" alt="" className="w-full h-full object-cover" style={{ objectPosition: '50% 35%' }} />
+          <img src="/hero-new3.jpg" alt="" className="w-full h-full object-cover" style={{ objectPosition: '60% center' }} />
           {/* Seamless fade from #DBDBDB into image */}
           <div className="absolute inset-y-0 left-0 pointer-events-none" style={{ width: '280px', background: 'linear-gradient(to right, #DBDBDB, transparent)' }} />
         </div>
