@@ -32,7 +32,7 @@ export function formatOrder(order: {
   status: string;
   createdAt: Date | string;
   items: Array<{
-    product: { nameRu: string; slug?: string; priceByn?: any; priceUsd?: any };
+    product: { nameRu: string; slug?: string; priceByn?: any; priceUsd?: any; priceRub?: any };
     size?: string | null;
     color?: string | null;
     quantity: number;
@@ -40,7 +40,9 @@ export function formatOrder(order: {
 }, opts: { header?: boolean } = {}): string {
   const date = new Date(order.createdAt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' });
 
-  let total = 0;
+  let totalByn = 0;
+  let totalUsd = 0;
+  let totalRub = 0;
   const items = order.items
     .map((i) => {
       const name = esc(i.product.nameRu);
@@ -51,16 +53,28 @@ export function formatOrder(order: {
       const extras = [i.size, formatColor(i.color)].filter(Boolean).join(' · ');
       const priceByn = Number(i.product.priceByn || 0);
       const priceUsd = Number(i.product.priceUsd || 0);
-      const lineTotal = priceByn * i.quantity;
-      total += lineTotal;
-      const priceStr = priceByn
-        ? ` — ${lineTotal} BYN${priceUsd ? ` / ${(priceUsd * i.quantity).toFixed(2)} $` : ''}`
-        : '';
-      return `  • ${link}${qty}${extras ? ` (${esc(extras)})` : ''}${priceStr}`;
+      const priceRub = Number(i.product.priceRub || 0);
+      totalByn += priceByn * i.quantity;
+      totalUsd += priceUsd * i.quantity;
+      totalRub += priceRub * i.quantity;
+      const priceLines = priceByn ? [
+        `    🇧🇾 ${(priceByn * i.quantity).toFixed(2)} BYN`,
+        priceUsd ? `    🇺🇸 ${(priceUsd * i.quantity).toFixed(2)} $` : '',
+        priceRub ? `    🇷🇺 ${(priceRub * i.quantity).toFixed(2)} ₽` : '',
+      ].filter(Boolean).join('\n') : '';
+      return `  • ${link}${qty}${extras ? ` (${esc(extras)})` : ''}${priceLines ? '\n' + priceLines : ''}`;
     })
     .join('\n');
 
-  const totalStr = total > 0 ? `\n💵 <b>Итого: ${total} BYN</b>` : '';
+  const totalStr = totalByn > 0
+    ? [
+        '',
+        '💵 <b>Итого:</b>',
+        `    🇧🇾 ${totalByn.toFixed(2)} BYN`,
+        totalUsd ? `    🇺🇸 ${totalUsd.toFixed(2)} $` : '',
+        totalRub ? `    🇷🇺 ${totalRub.toFixed(2)} ₽` : '',
+      ].filter((l) => l !== undefined && l !== null).join('\n')
+    : '';
 
   const header = opts.header === false ? '' : `🛒 <b>ЗАКАЗ #${order.id}</b>\n`;
   const lines = [
