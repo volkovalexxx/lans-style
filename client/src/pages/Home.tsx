@@ -45,7 +45,7 @@ export default function Home() {
         <div className="absolute inset-0 hidden md:block" style={{ backgroundColor: '#DBDBDB' }} />
 
         {/* Mobile: full-width video (unchanged) */}
-        <video src="/hero.mov" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover object-center md:hidden" />
+        <video src="/hero.mp4" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover object-center md:hidden" />
 
         {/* Desktop: image pinned to right, 70% width */}
         <div className="absolute right-0 top-0 h-full hidden md:block" style={{ width: '70%' }}>
