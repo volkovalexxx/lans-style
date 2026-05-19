@@ -630,41 +630,31 @@ export default function AdminProducts() {
             <div className="bg-gradient-to-br from-[#F8F5FC] to-[#F0EBF8] border border-[#D4BFEF] rounded-2xl p-4 space-y-4">
               <p className="text-sm font-medium text-[#7C5C9A]">Состав костюма</p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {Array.from({ length: 2 + extraCostumeSlots }).map((_, slotIdx) => {
-                  const labelKey = `costumeLabel${slotIdx + 1}` as keyof typeof editing;
-                  return (
-                    <div key={slotIdx} className="relative space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <label className="text-xs text-[#6B6B6B]">Позиция {slotIdx + 1}</label>
-                        {slotIdx >= 2 && slotIdx === 1 + extraCostumeSlots && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditing({ ...editing, [costumeSlotKeys[slotIdx]]: null, [labelKey]: '' });
-                              setExtraCostumeSlots(extraCostumeSlots - 1);
-                            }}
-                            className="text-[#6B6B6B] hover:text-red-500 transition-colors"
-                          >
-                            <HiXMark className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        placeholder={`Подпись (по умолчанию: Позиция ${slotIdx + 1})`}
-                        value={(editing[labelKey] as string) || ''}
-                        onChange={(e) => setEditing({ ...editing, [labelKey]: e.target.value })}
-                        className="w-full border border-[#E5E5E3] rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-[#C4A882] transition-colors"
-                      />
-                      <ProductPicker
-                        value={editing[costumeSlotKeys[slotIdx]]}
-                        onChange={(id) => setEditing({ ...editing, [costumeSlotKeys[slotIdx]]: id })}
-                        products={allProducts.filter((p) => p.id !== editing.id && !p.isCostume)}
-                        placeholder="— выберите товар —"
-                      />
-                    </div>
-                  );
-                })}
+                {Array.from({ length: 2 + extraCostumeSlots }).map((_, slotIdx) => (
+                  <div key={slotIdx} className="relative">
+                    <label className="text-xs text-[#6B6B6B] mb-1.5 flex items-center justify-between">
+                      <span>Позиция {slotIdx + 1}</span>
+                      {slotIdx >= 2 && slotIdx === 1 + extraCostumeSlots && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditing({ ...editing, [costumeSlotKeys[slotIdx]]: null });
+                            setExtraCostumeSlots(extraCostumeSlots - 1);
+                          }}
+                          className="text-[#6B6B6B] hover:text-red-500 transition-colors"
+                        >
+                          <HiXMark className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </label>
+                    <ProductPicker
+                      value={editing[costumeSlotKeys[slotIdx]]}
+                      onChange={(id) => setEditing({ ...editing, [costumeSlotKeys[slotIdx]]: id })}
+                      products={allProducts.filter((p) => p.id !== editing.id && !p.isCostume)}
+                      placeholder="— выберите товар —"
+                    />
+                  </div>
+                ))}
               </div>
               {extraCostumeSlots < 3 && (
                 <button
