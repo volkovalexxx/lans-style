@@ -36,6 +36,7 @@ export default function ProductPage() {
   const [selectedTopColor, setSelectedTopColor] = useState('');
   const [selectedBottomSize, setSelectedBottomSize] = useState('');
   const [selectedBottomColor, setSelectedBottomColor] = useState('');
+  const [extraSizes, setExtraSizes] = useState<string[]>(['', '', '']);
   const [addedTop, setAddedTop] = useState(false);
   const [addedBottom, setAddedBottom] = useState(false);
   const [addedSet, setAddedSet] = useState(false);
@@ -108,6 +109,20 @@ export default function ProductPage() {
   const handleAddSetToCart = () => {
     handleAddTopToCart();
     handleAddBottomToCart();
+    const extraItems = [product.costumeItem3, product.costumeItem4, product.costumeItem5].filter(Boolean);
+    extraItems.forEach((item: any, idx: number) => {
+      addItem({
+        productId: item.id,
+        slug: item.slug,
+        nameRu: item.nameRu,
+        nameEn: item.nameEn,
+        priceByn: Number(item.priceByn),
+        priceUsd: Number(item.priceUsd),
+        priceRub: Number(item.priceRub || 0),
+        image: item.images?.[0],
+        size: extraSizes[idx],
+      });
+    });
     setAddedTop(false);
     setAddedBottom(false);
     setAddedSet(true);
@@ -123,15 +138,20 @@ export default function ProductPage() {
       ];
 
   const isCostume = product.isCostume && product.costumeTop && product.costumeBottom;
+  const extraItems: any[] = isCostume
+    ? [product.costumeItem3, product.costumeItem4, product.costumeItem5].filter(Boolean)
+    : [];
 
   // Savings calculation for costume
   const costumeSetPrice = Number(product.priceByn);
   const topPrice = isCostume ? Number(product.costumeTop.priceByn) : 0;
   const bottomPrice = isCostume ? Number(product.costumeBottom.priceByn) : 0;
-  const sumParts = topPrice + bottomPrice;
+  const extraPartsPrice = extraItems.reduce((s: number, i: any) => s + Number(i.priceByn), 0);
+  const extraPartsUsd = extraItems.reduce((s: number, i: any) => s + Number(i.priceUsd), 0);
+  const sumParts = topPrice + bottomPrice + extraPartsPrice;
   const savings = sumParts > costumeSetPrice ? sumParts - costumeSetPrice : 0;
   const savingsPrice = isCostume
-    ? formatPrice(savings, Number(product.costumeTop.priceUsd) + Number(product.costumeBottom.priceUsd) - Number(product.priceUsd), 0, currency)
+    ? formatPrice(savings, Number(product.costumeTop.priceUsd) + Number(product.costumeBottom.priceUsd) + extraPartsUsd - Number(product.priceUsd), 0, currency)
     : '';
 
   const GalleryBlock = ({ images }: { images: string[] }) => (
@@ -382,6 +402,23 @@ export default function ProductPage() {
                   </div>
                 </div>
               )}
+              {extraItems.map((item: any, idx: number) => (
+                item.sizes?.length > 0 && (
+                  <div key={item.id}>
+                    <p className="text-sm font-medium mb-1.5">
+                      {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">Позиция {idx + 3}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {item.sizes.map((sz: string) => (
+                        <button key={sz} onClick={() => setExtraSizes((prev) => { const next = [...prev]; next[idx] = sz; return next; })}
+                          className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${extraSizes[idx] === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
+                          {sz}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              ))}
             </div>
 
             {/* Buy set */}
@@ -405,6 +442,15 @@ export default function ProductPage() {
               <div className="space-y-2.5">
                 <PieceCard piece={top} pieceName={topName} piecePrice={topPriceFmt} label={t('product.costume_top')} />
                 <PieceCard piece={bottom} pieceName={bottomName} piecePrice={bottomPriceFmt} label={t('product.costume_bottom')} />
+                {extraItems.map((item: any, idx: number) => (
+                  <PieceCard
+                    key={item.id}
+                    piece={item}
+                    pieceName={isRu ? item.nameRu : item.nameEn}
+                    piecePrice={formatPrice(item.priceByn, item.priceUsd, item.priceRub || 0, currency)}
+                    label={`Позиция ${idx + 3}`}
+                  />
+                ))}
               </div>
             </div>
 
