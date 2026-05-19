@@ -370,56 +370,20 @@ export default function ProductPage() {
               </div>
             )}
 
-            {/* Sizes for top and bottom */}
-            <div className="space-y-3 mb-5">
-              {top.sizes?.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-1.5">
-                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{slotLabel(1)}</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {top.sizes.map((sz: string) => (
-                      <button key={sz} onClick={() => setSelectedTopSize(sz)}
-                        className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${selectedTopSize === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
-                        {sz}
-                      </button>
-                    ))}
-                  </div>
+            {/* Costume own sizes */}
+            {product.sizes?.length > 0 && (
+              <div className="mb-5">
+                <p className="text-sm font-medium mb-1.5">{t('product.size')}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {product.sizes.map((sz: string) => (
+                    <button key={sz} onClick={() => setSelectedSize(sz)}
+                      className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${selectedSize === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
+                      {sz}
+                    </button>
+                  ))}
                 </div>
-              )}
-              {bottom.sizes?.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-1.5">
-                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{slotLabel(2)}</span>
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {bottom.sizes.map((sz: string) => (
-                      <button key={sz} onClick={() => setSelectedBottomSize(sz)}
-                        className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${selectedBottomSize === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
-                        {sz}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {extraItems.map((item: any, idx: number) => (
-                item.sizes?.length > 0 && (
-                  <div key={item.id}>
-                    <p className="text-sm font-medium mb-1.5">
-                      {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{slotLabel(idx + 3)}</span>
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {item.sizes.map((sz: string) => (
-                        <button key={sz} onClick={() => setExtraSizes((prev) => { const next = [...prev]; next[idx] = sz; return next; })}
-                          className={`px-3 py-1.5 rounded-lg text-xs border transition-colors ${extraSizes[idx] === sz ? 'bg-[#1A1A1A] text-white border-[#1A1A1A]' : 'border-[#E5E5E3] hover:border-[#C4A882]'}`}>
-                          {sz}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              ))}
-            </div>
+              </div>
+            )}
 
             {/* Buy set */}
             <button
