@@ -51,6 +51,11 @@ model Product {
   costumeItem3Id   Int?
   costumeItem4Id   Int?
   costumeItem5Id   Int?
+  costumeLabel1    String?
+  costumeLabel2    String?
+  costumeLabel3    String?
+  costumeLabel4    String?
+  costumeLabel5    String?
   costumeTop       Product?  @relation("CostumeTop",    fields: [costumeTopId],    references: [id], onDelete: SetNull)
   costumeBottom    Product?  @relation("CostumeBottom", fields: [costumeBottomId], references: [id], onDelete: SetNull)
   costumeItem3     Product?  @relation("CostumeItem3",  fields: [costumeItem3Id],  references: [id], onDelete: SetNull)

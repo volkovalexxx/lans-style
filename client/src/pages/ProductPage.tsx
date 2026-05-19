@@ -285,6 +285,7 @@ export default function ProductPage() {
     const bottomName = isRu ? bottom.nameRu : bottom.nameEn;
     const topPriceFmt = formatPrice(top.priceByn, top.priceUsd, top.priceRub || 0, currency);
     const bottomPriceFmt = formatPrice(bottom.priceByn, bottom.priceUsd, bottom.priceRub || 0, currency);
+    const slotLabel = (n: number) => (product[`costumeLabel${n}`] as string | null) || `Позиция ${n}`;
 
     // Piece preview block component
     const PieceCard = ({
@@ -375,7 +376,7 @@ export default function ProductPage() {
               {top.sizes?.length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-1.5">
-                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{t('product.costume_top')}</span>
+                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{slotLabel(1)}</span>
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {top.sizes.map((sz: string) => (
@@ -390,7 +391,7 @@ export default function ProductPage() {
               {bottom.sizes?.length > 0 && (
                 <div>
                   <p className="text-sm font-medium mb-1.5">
-                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{t('product.costume_bottom')}</span>
+                    {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{slotLabel(2)}</span>
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {bottom.sizes.map((sz: string) => (
@@ -406,7 +407,7 @@ export default function ProductPage() {
                 item.sizes?.length > 0 && (
                   <div key={item.id}>
                     <p className="text-sm font-medium mb-1.5">
-                      {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">Позиция {idx + 3}</span>
+                      {t('product.size')} <span className="text-[#7C5C9A] text-xs font-normal ml-1">{slotLabel(idx + 3)}</span>
                     </p>
                     <div className="flex flex-wrap gap-1.5">
                       {item.sizes.map((sz: string) => (
@@ -440,15 +441,15 @@ export default function ProductPage() {
             <div className="border-t border-[#E5E5E3] pt-5">
               <p className="text-xs uppercase tracking-[0.2em] text-[#6B6B6B] mb-3">В составе комплекта</p>
               <div className="space-y-2.5">
-                <PieceCard piece={top} pieceName={topName} piecePrice={topPriceFmt} label={t('product.costume_top')} />
-                <PieceCard piece={bottom} pieceName={bottomName} piecePrice={bottomPriceFmt} label={t('product.costume_bottom')} />
+                <PieceCard piece={top} pieceName={topName} piecePrice={topPriceFmt} label={slotLabel(1)} />
+                <PieceCard piece={bottom} pieceName={bottomName} piecePrice={bottomPriceFmt} label={slotLabel(2)} />
                 {extraItems.map((item: any, idx: number) => (
                   <PieceCard
                     key={item.id}
                     piece={item}
                     pieceName={isRu ? item.nameRu : item.nameEn}
                     piecePrice={formatPrice(item.priceByn, item.priceUsd, item.priceRub || 0, currency)}
-                    label={`Позиция ${idx + 3}`}
+                    label={slotLabel(idx + 3)}
                   />
                 ))}
               </div>
