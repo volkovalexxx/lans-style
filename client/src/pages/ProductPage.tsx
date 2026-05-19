@@ -303,7 +303,6 @@ export default function ProductPage() {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-[#7C5C9A] mb-0.5">{label}</p>
           <p className="font-medium text-sm leading-snug truncate">{pieceName}</p>
           {piece.sku && <p className="text-[11px] font-mono text-[#6B6B6B] mt-0.5">{piece.sku}</p>}
           <p className="text-sm font-semibold text-[#1A1A1A] mt-0.5">{piecePrice}</p>
