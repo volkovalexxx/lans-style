@@ -18,6 +18,7 @@ const navItems = [
   { to: '/lansadmin/categories', label: 'Категории' },
   { to: '/lansadmin/orders', label: 'Заказы' },
   { to: '/lansadmin/home-cards', label: 'Главная страница' },
+  { to: '/lansadmin/reports', label: 'Отчёты' },
 ];
 
 function AdminLayout({ children }: { children: React.ReactNode }) {

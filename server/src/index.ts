@@ -2,6 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import cron from 'node-cron';
 import { PrismaClient } from '@prisma/client';
 
 import productsRouter from './routes/products';
@@ -13,6 +14,8 @@ import uploadRouter from './routes/upload';
 import pagesRouter from './routes/pages';
 import settingsRouter from './routes/settings';
 import homeCardsRouter from './routes/homeCards';
+import reportsRouter, { sendReportToTelegram } from './routes/reports';
+import { generateMonthlyReport } from './services/reports';
 import { startBot } from './bot';
 
 export const prisma = new PrismaClient();
@@ -34,6 +37,7 @@ app.use('/api/upload', uploadRouter);
 app.use('/api/pages', pagesRouter);
 app.use('/api/settings', settingsRouter);
 app.use('/api/home-cards', homeCardsRouter);
+app.use('/api/reports', reportsRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -47,4 +51,19 @@ app.listen(PORT, () => {
   if (process.env.TELEGRAM_BOT_TOKEN) {
     startBot();
   }
+
+  // Auto-generate monthly report on the 1st of each month at 00:00
+  cron.schedule('0 0 1 * *', async () => {
+    const now = new Date();
+    const month = now.getMonth() === 0 ? 12 : now.getMonth();
+    const year = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+    console.log(`[cron] Generating monthly report for ${year}/${month}`);
+    try {
+      const filePath = await generateMonthlyReport(year, month);
+      await sendReportToTelegram(filePath, year, month);
+      console.log(`[cron] Report for ${year}/${month} sent.`);
+    } catch (err) {
+      console.error('[cron] Report generation failed:', err);
+    }
+  });
 });

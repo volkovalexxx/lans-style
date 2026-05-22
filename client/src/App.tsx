@@ -21,6 +21,7 @@ import AdminCategories from './pages/admin/Categories';
 import AdminOrders from './pages/admin/Orders';
 import AdminArchive from './pages/admin/Archive';
 import AdminHomeCards from './pages/admin/HomeCards';
+import AdminReports from './pages/admin/Reports';
 import NotFound from './pages/NotFound';
 import { useApi } from './hooks/useApi';
 
@@ -59,6 +60,7 @@ export default function App() {
       <Route path="/lansadmin/orders" element={<AdminOrders />} />
       <Route path="/lansadmin/archive" element={<AdminArchive />} />
       <Route path="/lansadmin/home-cards" element={<AdminHomeCards />} />
+      <Route path="/lansadmin/reports" element={<AdminReports />} />
     </Routes>
     </>
   );

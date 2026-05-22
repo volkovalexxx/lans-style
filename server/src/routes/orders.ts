@@ -15,6 +15,14 @@ router.post('/', async (req, res) => {
     return;
   }
 
+  // Fetch products to snapshot name/sku/price at time of order
+  const productIds = [...new Set(items.map((i: any) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: productIds as number[] } },
+    select: { id: true, nameRu: true, sku: true, priceByn: true },
+  });
+  const productMap = new Map(products.map((p) => [p.id, p]));
+
   const order = await prisma.order.create({
     data: {
       name,
@@ -22,12 +30,18 @@ router.post('/', async (req, res) => {
       email,
       comment,
       items: {
-        create: items.map((item: any) => ({
-          productId: item.productId,
-          size: item.size,
-          color: item.color,
-          quantity: item.quantity || 1,
-        })),
+        create: items.map((item: any) => {
+          const p = productMap.get(item.productId);
+          return {
+            productId: item.productId,
+            size: item.size,
+            color: item.color,
+            quantity: item.quantity || 1,
+            productNameRu: p?.nameRu ?? null,
+            productSku: p?.sku ?? null,
+            productPriceByn: p?.priceByn ?? null,
+          };
+        }),
       },
     },
     include: {

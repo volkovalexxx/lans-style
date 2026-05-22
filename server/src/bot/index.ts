@@ -5,6 +5,7 @@ import { getSession, setFlow, updateSession, clearSession } from './session';
 import { formatOrder, formatWholesale, formatProduct, STATUS_LABELS } from './format';
 import { sendPhotoCard, resolveImages, resolveImagePath, downloadTelegramPhoto } from './media';
 import { getBotSettings, saveBotSettings } from './settings';
+import { generateMonthlyReport, getAvailableMonths, monthName } from '../services/reports';
 
 const PRESET_LABELS = ['NEW', 'SALE', 'HIT', 'TOP', '-10%', '-20%', '-30%', '-50%'];
 
@@ -12,7 +13,8 @@ function mainMenu(chatId?: number) {
   const kb = new Keyboard()
     .text('📦 Товары').text('📂 Категории').row()
     .text('🛒 Заказы').text('🏢 Опт').row()
-    .text('📊 Статистика').text('❓ Помощь').row();
+    .text('📊 Статистика').text('📋 Отчёт').row()
+    .text('❓ Помощь').row();
   if (isTechAdmin(chatId)) kb.text('⚙️ Настройки').row();
   return kb.resized();
 }
@@ -1153,6 +1155,65 @@ export function startBot() {
       await promptLabels(ctx);
     } else {
       await ctx.reply('Пропускать нечего.');
+    }
+  });
+
+  /* ============================================================
+     REPORTS
+     ============================================================ */
+
+  bot.hears('📋 Отчёт', async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const prevMonth = curMonth === 1 ? 12 : curMonth - 1;
+    const prevYear = curMonth === 1 ? curYear - 1 : curYear;
+
+    const months = await getAvailableMonths();
+
+    const kb = new InlineKeyboard();
+    kb.text(`📅 Текущий месяц (${monthName(curMonth)} ${curYear})`, `report:get:${curYear}:${curMonth}`).row();
+    kb.text(`📅 Прошлый месяц (${monthName(prevMonth)} ${prevYear})`, `report:get:${prevYear}:${prevMonth}`).row();
+
+    if (months.length > 0) {
+      kb.text('━━━━ Другие месяцы ━━━━', 'noop').row();
+      for (const m of months.slice(0, 8)) {
+        const key = `${m.year}:${m.month}`;
+        if (key !== `${curYear}:${curMonth}` && key !== `${prevYear}:${prevMonth}`) {
+          kb.text(m.label, `report:get:${m.year}:${m.month}`).row();
+        }
+      }
+    }
+
+    await ctx.reply('📋 <b>Отчёты о реализованных товарах</b>\n\nВыберите период:', {
+      parse_mode: 'HTML',
+      reply_markup: kb,
+    });
+  });
+
+  bot.callbackQuery(/^report:get:(\d+):(\d+)$/, async (ctx) => {
+    if (!isAdminChat(ctx.chat?.id)) return;
+    await ctx.answerCallbackQuery();
+
+    const year = Number(ctx.match[1]);
+    const month = Number(ctx.match[2]);
+    const label = `${monthName(month)} ${year}`;
+
+    const msg = await ctx.reply(`⏳ Формирую отчёт за ${label}...`);
+
+    try {
+      const filePath = await generateMonthlyReport(year, month);
+      await ctx.api.deleteMessage(ctx.chat!.id, msg.message_id);
+      await ctx.api.sendDocument(
+        ctx.chat!.id,
+        new InputFile(filePath),
+        { caption: `📋 Отчёт за ${label}` }
+      );
+    } catch (err) {
+      console.error('Bot report error:', err);
+      await ctx.api.editMessageText(ctx.chat!.id, msg.message_id, '❌ Ошибка при формировании отчёта.');
     }
   });
 
