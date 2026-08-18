@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HiOutlineHeart, HiHeart } from 'react-icons/hi2';
-import { motion } from 'framer-motion';
 import { useFavStore } from '../store/favStore';
 import { useCurrencyStore, formatPrice } from '../store/currencyStore';
+import SmartImage from './SmartImage';
 
 const labelStyles: Record<string, string> = {
   NEW: 'bg-[#1A1A1A] text-white',
@@ -52,18 +52,12 @@ export default function ProductCard({ product }: Props) {
   const labels = product.isCostume ? [costumeLabel, ...baseLabels] : baseLabels;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow"
-    >
+    <div className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
       <Link to={`/product/${product.slug}`} className="block relative aspect-[3/4] overflow-hidden bg-[#F5F0EB]">
         {image ? (
-          <img
+          <SmartImage
             src={image}
             alt={name}
-            loading="lazy"
-            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         ) : (
@@ -121,6 +115,6 @@ export default function ProductCard({ product }: Props) {
           </button>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

@@ -32,7 +32,9 @@ export function formatOrder(order: {
   status: string;
   createdAt: Date | string;
   items: Array<{
-    product: { nameRu: string; slug?: string; priceByn?: any; priceUsd?: any; priceRub?: any };
+    product?: { nameRu: string; slug?: string; priceByn?: any; priceUsd?: any; priceRub?: any } | null;
+    productNameRu?: string | null;
+    productPriceByn?: any;
     size?: string | null;
     color?: string | null;
     quantity: number;
@@ -45,24 +47,24 @@ export function formatOrder(order: {
   let totalRub = 0;
   const items = order.items
     .map((i) => {
-      const name = esc(i.product.nameRu);
-      const link = i.product.slug
+      const qty = Math.max(1, Number(i.quantity) || 1);
+      const name = esc(i.product?.nameRu || i.productNameRu || 'Товар');
+      const link = i.product?.slug
         ? `<a href="${SITE_URL}/product/${i.product.slug}">🔗 ${name}</a>`
         : `🔗 ${name}`;
-      const qty = i.quantity > 1 ? ` ×${i.quantity}` : '';
       const extras = [i.size, formatColor(i.color)].filter(Boolean).join(' · ');
-      const priceByn = Number(i.product.priceByn || 0);
-      const priceUsd = Number(i.product.priceUsd || 0);
-      const priceRub = Number(i.product.priceRub || 0);
-      totalByn += priceByn * i.quantity;
-      totalUsd += priceUsd * i.quantity;
-      totalRub += priceRub * i.quantity;
+      const priceByn = Number(i.product?.priceByn ?? i.productPriceByn ?? 0);
+      const priceUsd = Number(i.product?.priceUsd || 0);
+      const priceRub = Number(i.product?.priceRub || 0);
+      totalByn += priceByn * qty;
+      totalUsd += priceUsd * qty;
+      totalRub += priceRub * qty;
       const priceLines = priceByn ? [
-        `    🇧🇾 ${(priceByn * i.quantity).toFixed(2)} BYN`,
-        priceUsd ? `    🇺🇸 ${(priceUsd * i.quantity).toFixed(2)} $` : '',
-        priceRub ? `    🇷🇺 ${(priceRub * i.quantity).toFixed(2)} ₽` : '',
+        `    🇧🇾 ${(priceByn * qty).toFixed(2)} BYN`,
+        priceUsd ? `    🇺🇸 ${(priceUsd * qty).toFixed(2)} $` : '',
+        priceRub ? `    🇷🇺 ${(priceRub * qty).toFixed(2)} ₽` : '',
       ].filter(Boolean).join('\n') : '';
-      return `  • ${link}${qty}${extras ? ` (${esc(extras)})` : ''}${priceLines ? '\n' + priceLines : ''}`;
+      return `  • ${link} ×${qty}${extras ? ` (${esc(extras)})` : ''}${priceLines ? '\n' + priceLines : ''}`;
     })
     .join('\n');
 

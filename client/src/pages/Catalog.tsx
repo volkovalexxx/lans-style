@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { HiChevronDown, HiXMark, HiAdjustmentsHorizontal, HiChevronLeft, HiChevronRight } from 'react-icons/hi2';
+import { HiChevronDown, HiXMark, HiAdjustmentsHorizontal } from 'react-icons/hi2';
 import { motion, AnimatePresence } from 'framer-motion';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import { useApi } from '../hooks/useApi';
 import { useCurrencyStore } from '../store/currencyStore';
 
@@ -674,60 +675,5 @@ function FilterChip({ children, onRemove }: { children: React.ReactNode; onRemov
         <HiXMark className="w-3 h-3" />
       </button>
     </span>
-  );
-}
-
-function getPages(current: number, total: number): (number | '...')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const pages: (number | '...')[] = [];
-  const add = (n: number) => { if (!pages.includes(n)) pages.push(n); };
-  add(1);
-  if (current > 3) pages.push('...');
-  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) add(i);
-  if (current < total - 2) pages.push('...');
-  add(total);
-  return pages;
-}
-
-function Pagination({ current, total, onChange }: { current: number; total: number; onChange: (p: number) => void }) {
-  const pages = getPages(current, total);
-  return (
-    <div className="flex items-center justify-center gap-1.5 mt-10 flex-wrap">
-      <button
-        onClick={() => onChange(current - 1)}
-        disabled={current === 1}
-        className="w-9 h-9 flex items-center justify-center rounded-full border border-[#E5E5E3] text-[#6B6B6B] hover:border-[#C4A882] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        <HiChevronLeft className="w-4 h-4" />
-      </button>
-
-      {pages.map((p, i) =>
-        p === '...' ? (
-          <span key={`dot-${i}`} className="w-9 h-9 flex items-center justify-center text-sm text-[#9B9B9B]">
-            ···
-          </span>
-        ) : (
-          <button
-            key={p}
-            onClick={() => onChange(p)}
-            className={`w-9 h-9 rounded-full text-sm font-medium transition-colors ${
-              current === p
-                ? 'bg-[#1A1A1A] text-white'
-                : 'border border-[#E5E5E3] hover:border-[#C4A882] text-[#1A1A1A]'
-            }`}
-          >
-            {p}
-          </button>
-        )
-      )}
-
-      <button
-        onClick={() => onChange(current + 1)}
-        disabled={current === total}
-        className="w-9 h-9 flex items-center justify-center rounded-full border border-[#E5E5E3] text-[#6B6B6B] hover:border-[#C4A882] disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-      >
-        <HiChevronRight className="w-4 h-4" />
-      </button>
-    </div>
   );
 }

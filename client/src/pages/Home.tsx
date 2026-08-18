@@ -10,6 +10,8 @@ import {
 } from 'react-icons/hi2';
 import ProductCarousel from '../components/ProductCarousel';
 import { useApi } from '../hooks/useApi';
+import SmartImage from '../components/SmartImage';
+import HeroBackground from '../components/HeroBackground';
 
 export default function Home() {
   const { t, i18n } = useTranslation();
@@ -41,18 +43,7 @@ export default function Home() {
     <div>
       {/* Banner */}
       <section className="relative h-[75vh] min-h-[540px] bg-[#1A1A1A] flex items-center overflow-hidden">
-        {/* Desktop only: #DBDBDB background */}
-        <div className="absolute inset-0 hidden md:block" style={{ backgroundColor: '#DBDBDB' }} />
-
-        {/* Mobile: full-width video (unchanged) */}
-        <video src="/hero.mp4" autoPlay muted loop playsInline className="absolute inset-0 w-full h-full object-cover object-center md:hidden" />
-
-        {/* Desktop: image pinned to right, 70% width */}
-        <div className="absolute right-0 top-0 h-full hidden md:block" style={{ width: '70%' }}>
-          <img src="/hero-new3.jpg" alt="" className="w-full h-full object-cover" style={{ objectPosition: '60% center' }} />
-          {/* Seamless fade from #DBDBDB into image */}
-          <div className="absolute inset-y-0 left-0 pointer-events-none" style={{ width: '280px', background: 'linear-gradient(to right, #DBDBDB, transparent)' }} />
-        </div>
+        <HeroBackground />
 
         {/* Dark overlay for text readability */}
         <div className="absolute inset-0 bg-gradient-to-r from-[#1A1A1A]/70 via-[#1A1A1A]/30 to-transparent z-10" />
@@ -315,9 +306,10 @@ function BentoCategoryCard({ category, overrideImage, name, featured, className 
         className="group relative block w-full h-full overflow-hidden rounded-2xl md:rounded-3xl bg-[#F5F0EB]"
       >
         {backgroundImage ? (
-          <img
+          <SmartImage
             src={backgroundImage}
             alt={name}
+            eager={featured}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
           />
         ) : (

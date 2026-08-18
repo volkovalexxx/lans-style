@@ -4,6 +4,10 @@ import { InputFile, InputMediaBuilder, type Bot, type Context } from 'grammy';
 
 const UPLOADS_DIR = path.join(__dirname, '..', '..', 'uploads');
 
+function toPhotoInput(pathOrUrl: string) {
+  return /^https?:\/\//i.test(pathOrUrl) ? pathOrUrl : new InputFile(pathOrUrl);
+}
+
 /**
  * Download a photo from Telegram servers to the local uploads/ folder.
  * Returns the public URL (e.g. "/uploads/xxx.jpg") to store in product.images.
@@ -31,6 +35,7 @@ export async function downloadTelegramPhoto(
 
 export function resolveImagePath(url: string): string | null {
   if (!url) return null;
+  if (/^https?:\/\//i.test(url)) return url;
   const filename = url.startsWith('/uploads/') ? url.slice('/uploads/'.length) : url.replace(/^\/+/, '');
   const p = path.join(UPLOADS_DIR, filename);
   return fs.existsSync(p) ? p : null;
@@ -74,11 +79,11 @@ export async function sendPhotoCard(
     await ctx.replyWithChatAction('upload_photo').catch(() => {});
 
     if (paths.length === 1) {
-      await ctx.replyWithPhoto(new InputFile(paths[0]), {
+      await ctx.replyWithPhoto(toPhotoInput(paths[0]), {
         caption, parse_mode: 'HTML', reply_markup: keyboard,
       });
     } else {
-      const media = paths.map((p) => InputMediaBuilder.photo(new InputFile(p)));
+      const media = paths.map((p) => InputMediaBuilder.photo(toPhotoInput(p)));
       await ctx.replyWithMediaGroup(media);
       await ctx.reply(caption, { parse_mode: 'HTML', reply_markup: keyboard });
     }
@@ -98,11 +103,11 @@ export async function sendPhotoCardTo(
     return bot.api.sendMessage(chatId, caption, { parse_mode: 'HTML', reply_markup: keyboard });
   }
   if (paths.length === 1) {
-    return bot.api.sendPhoto(chatId, new InputFile(paths[0]), {
+    return bot.api.sendPhoto(chatId, toPhotoInput(paths[0]), {
       caption, parse_mode: 'HTML', reply_markup: keyboard,
     });
   }
-  const media = paths.map((p) => InputMediaBuilder.photo(new InputFile(p)));
+  const media = paths.map((p) => InputMediaBuilder.photo(toPhotoInput(p)));
   await bot.api.sendMediaGroup(chatId, media);
   await bot.api.sendMessage(chatId, caption, { parse_mode: 'HTML', reply_markup: keyboard });
 }

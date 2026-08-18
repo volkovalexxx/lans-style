@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { HiXMark, HiChevronLeft, HiChevronRight } from 'react-icons/hi2';
 import { motion, AnimatePresence } from 'framer-motion';
+import { scrollChildIntoStrip } from '../utils/scrollChildIntoStrip';
 
 interface Props {
   open: boolean;
@@ -13,6 +14,7 @@ interface Props {
 export default function ImageLightbox({ open, images, index, onChange, onClose }: Props) {
   const touchStartX = useRef(0);
   const touchDeltaX = useRef(0);
+  const thumbsRef = useRef<HTMLDivElement>(null);
   const activeThumbRef = useRef<HTMLButtonElement>(null);
 
   const hasMany = images.length > 1;
@@ -36,7 +38,7 @@ export default function ImageLightbox({ open, images, index, onChange, onClose }
   }, [open, hasMany, index, images.length]);
 
   useEffect(() => {
-    if (open) activeThumbRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    if (open) scrollChildIntoStrip(thumbsRef.current, activeThumbRef.current);
   }, [index, open]);
 
   return (
@@ -120,15 +122,16 @@ export default function ImageLightbox({ open, images, index, onChange, onClose }
             {hasMany && (
               <div className="bg-white/95 backdrop-blur-sm md:bg-white border-t border-[#E5E5E3] px-4 md:px-6 py-3 md:py-4">
                 <div className="relative">
-                  <div className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory -mx-1 px-1">
+                  <div ref={thumbsRef} className="flex gap-2 overflow-x-auto scrollbar-hide overscroll-x-contain [overflow-anchor:none] -mx-1 px-1">
                     {images.map((img, i) => {
                       const active = i === index;
                       return (
                         <button
                           key={i}
                           ref={active ? activeThumbRef : null}
+                          onMouseDown={(e) => e.preventDefault()}
                           onClick={() => onChange(i)}
-                          className={`relative flex-shrink-0 snap-start rounded-lg overflow-hidden transition-all duration-200 w-14 h-16 md:w-16 md:h-20 ring-inset ${
+                          className={`relative flex-shrink-0 rounded-lg overflow-hidden transition-opacity duration-200 w-14 h-16 md:w-16 md:h-20 ring-inset ${
                             active
                               ? 'ring-[3px] ring-[#C4A882]'
                               : 'opacity-60 hover:opacity-100 ring-1 ring-[#E5E5E3]'

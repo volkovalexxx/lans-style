@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { motion } from 'framer-motion';
+import SmartImage from './SmartImage';
 
 interface Props {
   category: {
@@ -28,7 +29,7 @@ export default function CategoryCard({ category }: Props) {
         className="block group relative aspect-[4/5] rounded-2xl overflow-hidden bg-[#F5F0EB]"
       >
         {category.image ? (
-          <img
+          <SmartImage
             src={category.image}
             alt={name}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"

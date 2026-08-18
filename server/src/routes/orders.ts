@@ -36,7 +36,7 @@ router.post('/', async (req, res) => {
             productId: item.productId,
             size: item.size,
             color: item.color,
-            quantity: item.quantity || 1,
+            quantity: Math.max(1, Math.min(99, Math.floor(Number(item.quantity)) || 1)),
             productNameRu: p?.nameRu ?? null,
             productSku: p?.sku ?? null,
             productPriceByn: p?.priceByn ?? null,

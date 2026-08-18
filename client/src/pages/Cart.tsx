@@ -37,7 +37,12 @@ export default function Cart() {
         <div className="lg:col-span-2 space-y-4">
           {items.map((item) => {
             const name = isRu ? item.nameRu : item.nameEn;
-            const price = formatPrice(item.priceByn, item.priceUsd, item.priceRub || 0, currency);
+            const price = formatPrice(
+              item.priceByn * item.quantity,
+              item.priceUsd * item.quantity,
+              (item.priceRub || 0) * item.quantity,
+              currency
+            );
             const key = `${item.productId}-${item.size}-${item.color}`;
 
             return (

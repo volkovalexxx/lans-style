@@ -5,6 +5,7 @@ import { HiChevronLeft, HiChevronRight, HiOutlineHeart, HiHeart } from 'react-ic
 import { motion } from 'framer-motion';
 import { useFavStore } from '../store/favStore';
 import { useCurrencyStore, formatPrice } from '../store/currencyStore';
+import SmartImage from './SmartImage';
 
 interface Product {
   id: number;
@@ -117,7 +118,13 @@ export default function ProductCarousel({ products }: Props) {
                   className="block relative aspect-[3/4] bg-[#F5F0EB] overflow-hidden"
                 >
                   {image ? (
-                    <img src={image} alt={name} className="w-full h-full object-cover" draggable={false} />
+                    <SmartImage
+                      src={image}
+                      alt={name}
+                      eager={abs === 0}
+                      draggable={false}
+                      className="w-full h-full object-cover"
+                    />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center text-[#C4A882] text-7xl font-display">LS</div>
                   )}

@@ -29,6 +29,11 @@ services:
       SMTP_USER: opt.lansstyle@gmail.com
       SMTP_PASS: cfxfxopbxgupkuex
       EMAIL_FROM: "Lans Style <opt.lansstyle@gmail.com>"
+      R2_BUCKET: lans-style-stage-images
+      R2_ENDPOINT: https://3a0e534dffab63814ed6ed620bff4d54.r2.cloudflarestorage.com
+      R2_ACCESS_KEY_ID: a1485c3d4710d3ae8a53a185ab5e7e93
+      R2_SECRET_ACCESS_KEY: 1d4c0705d9da6becfd1d476f575bf3d446a7b909b4f96733672edc71ae477803
+      R2_PUBLIC_BASE_URL: https://cdn.lans-style.by
     volumes:
       - ./server/uploads:/app/uploads
     depends_on:

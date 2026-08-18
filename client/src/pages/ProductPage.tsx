@@ -9,6 +9,141 @@ import { useApi } from '../hooks/useApi';
 import { useCartStore } from '../store/cartStore';
 import { useFavStore } from '../store/favStore';
 import { useCurrencyStore, formatPrice } from '../store/currencyStore';
+import SmartImage from '../components/SmartImage';
+import { scrollChildIntoStrip } from '../utils/scrollChildIntoStrip';
+
+function ProductGallery({
+  images,
+  selectedImage,
+  onSelect,
+  name,
+  costumeLabel,
+  onOpenLightbox,
+}: {
+  images: string[];
+  selectedImage: number;
+  onSelect: (index: number) => void;
+  name: string;
+  costumeLabel?: string;
+  onOpenLightbox: () => void;
+}) {
+  const [swipeDir, setSwipeDir] = useState(0);
+  const touchStartX = useRef(0);
+  const touchDeltaX = useRef(0);
+  const thumbsRef = useRef<HTMLDivElement>(null);
+  const activeThumbRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    scrollChildIntoStrip(thumbsRef.current, activeThumbRef.current);
+  }, [selectedImage]);
+
+  const select = (index: number) => {
+    setSwipeDir(index > selectedImage ? 1 : index < selectedImage ? -1 : 0);
+    onSelect(index);
+  };
+
+  return (
+    <div>
+      <div
+        className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-[#F5F0EB] mb-4 group"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; touchDeltaX.current = 0; }}
+        onTouchMove={(e) => { touchDeltaX.current = e.touches[0].clientX - touchStartX.current; }}
+        onTouchEnd={() => {
+          const threshold = 50;
+          if (touchDeltaX.current < -threshold && selectedImage < images.length - 1) {
+            select(selectedImage + 1);
+          } else if (touchDeltaX.current > threshold && selectedImage > 0) {
+            select(selectedImage - 1);
+          }
+        }}
+      >
+        <AnimatePresence initial={false}>
+          <motion.div
+            key={selectedImage}
+            initial={{ opacity: 0, x: swipeDir * 80 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -swipeDir * 80 }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="absolute inset-0"
+          >
+            {images[selectedImage] ? (
+              <SmartImage
+                src={images[selectedImage]}
+                alt={name}
+                eager
+                draggable={false}
+                onClick={onOpenLightbox}
+                className="w-full h-full object-cover cursor-zoom-in"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center text-[#C4A882] text-8xl font-display">LS</div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+
+        {images.length > 1 && (
+          <>
+            {selectedImage > 0 && (
+              <button
+                type="button"
+                onClick={() => select(selectedImage - 1)}
+                className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
+              >
+                <HiChevronLeft className="w-4 h-4" />
+              </button>
+            )}
+            {selectedImage < images.length - 1 && (
+              <button
+                type="button"
+                onClick={() => select(selectedImage + 1)}
+                className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
+              >
+                <HiChevronRight className="w-4 h-4" />
+              </button>
+            )}
+          </>
+        )}
+
+        {costumeLabel && (
+          <div className="absolute top-3 left-3">
+            <span className="text-[10px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider bg-[#7C5C9A] text-white">
+              {costumeLabel}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {images.length > 1 && (
+        <div className="relative mt-2">
+          <div
+            ref={thumbsRef}
+            className="flex gap-2 overflow-x-auto scrollbar-hide overscroll-x-contain [overflow-anchor:none]"
+          >
+            {images.map((img: string, i: number) => {
+              const active = i === selectedImage;
+              return (
+                <button
+                  key={i}
+                  type="button"
+                  ref={active ? activeThumbRef : null}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => select(i)}
+                  className={`relative flex-shrink-0 rounded-xl overflow-hidden w-16 h-20 md:w-20 md:h-24 ring-inset ${
+                    active ? 'ring-[3px] ring-[#C4A882]' : 'opacity-60 ring-1 ring-[#E5E5E3]'
+                  }`}
+                >
+                  <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
+                </button>
+              );
+            })}
+          </div>
+          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#FAFAF8] to-transparent" />
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#FAFAF8] to-transparent" />
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function ProductPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -23,13 +158,8 @@ export default function ProductPage() {
   const [selectedSize, setSelectedSize] = useState('');
   const [selectedColor, setSelectedColor] = useState('');
   const [added, setAdded] = useState(false);
-  const [swipeDir, setSwipeDir] = useState(0);
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const touchStartX = useRef(0);
-  const touchDeltaX = useRef(0);
-  const thumbsRef = useRef<HTMLDivElement>(null);
-  const activeThumbRef = useRef<HTMLButtonElement>(null);
 
   // Costume-specific state
   const [selectedTopSize, setSelectedTopSize] = useState('');
@@ -42,8 +172,8 @@ export default function ProductPage() {
   const [addedSet, setAddedSet] = useState(false);
 
   useEffect(() => {
-    activeThumbRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-  }, [selectedImage]);
+    setSelectedImage(0);
+  }, [slug]);
 
   if (loading) return <div className="text-center py-20">...</div>;
   if (!product) return <div className="text-center py-20">{t('catalog.no_products')}</div>;
@@ -154,101 +284,6 @@ export default function ProductPage() {
     ? formatPrice(savings, Number(product.costumeTop.priceUsd) + Number(product.costumeBottom.priceUsd) + extraPartsUsd - Number(product.priceUsd), 0, currency)
     : '';
 
-  const GalleryBlock = ({ images }: { images: string[] }) => (
-    <div>
-      <div
-        className="relative aspect-[3/4] rounded-2xl overflow-hidden bg-[#F5F0EB] mb-4 group"
-        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; touchDeltaX.current = 0; }}
-        onTouchMove={(e) => { touchDeltaX.current = e.touches[0].clientX - touchStartX.current; }}
-        onTouchEnd={() => {
-          const threshold = 50;
-          if (touchDeltaX.current < -threshold && selectedImage < images.length - 1) {
-            setSwipeDir(1); setSelectedImage(selectedImage + 1);
-          } else if (touchDeltaX.current > threshold && selectedImage > 0) {
-            setSwipeDir(-1); setSelectedImage(selectedImage - 1);
-          }
-        }}
-      >
-        <AnimatePresence mode="popLayout" initial={false}>
-          <motion.div
-            key={selectedImage}
-            initial={{ opacity: 0, x: swipeDir * 100 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: -swipeDir * 100 }}
-            transition={{ duration: 0.25, ease: 'easeInOut' }}
-            className="absolute inset-0"
-          >
-            {images[selectedImage] ? (
-              <img
-                src={images[selectedImage]}
-                alt={name}
-                onClick={() => setLightboxOpen(true)}
-                className="w-full h-full object-cover cursor-zoom-in"
-                draggable={false}
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-[#C4A882] text-8xl font-display">LS</div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-
-        {images.length > 1 && (
-          <>
-            {selectedImage > 0 && (
-              <button
-                onClick={() => { setSwipeDir(-1); setSelectedImage(selectedImage - 1); }}
-                className="hidden md:flex absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
-              >
-                <HiChevronLeft className="w-4 h-4" />
-              </button>
-            )}
-            {selectedImage < images.length - 1 && (
-              <button
-                onClick={() => { setSwipeDir(1); setSelectedImage(selectedImage + 1); }}
-                className="hidden md:flex absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white shadow-sm"
-              >
-                <HiChevronRight className="w-4 h-4" />
-              </button>
-            )}
-          </>
-        )}
-
-        {isCostume && (
-          <div className="absolute top-3 left-3">
-            <span className="text-[10px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider bg-[#7C5C9A] text-white">
-              {t('product.costume_label')}
-            </span>
-          </div>
-        )}
-      </div>
-
-      {images.length > 1 && (
-        <div className="relative mt-2">
-          <div ref={thumbsRef} className="flex gap-2 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
-            {images.map((img: string, i: number) => {
-              const active = i === selectedImage;
-              return (
-                <button
-                  key={i}
-                  ref={active ? activeThumbRef : null}
-                  onClick={() => { setSwipeDir(i > selectedImage ? 1 : -1); setSelectedImage(i); }}
-                  className={`relative flex-shrink-0 snap-start rounded-xl overflow-hidden transition-all duration-200 w-16 h-20 md:w-20 md:h-24 ring-inset ${
-                    active ? 'ring-[3px] ring-[#C4A882] shadow-md' : 'opacity-60 hover:opacity-100 ring-1 ring-[#E5E5E3]'
-                  }`}
-                >
-                  <img src={img} alt="" className="w-full h-full object-cover" draggable={false} />
-                  {!active && <span className="absolute inset-0 bg-white/20 hover:bg-transparent transition-colors" />}
-                </button>
-              );
-            })}
-          </div>
-          <div className="pointer-events-none absolute left-0 top-0 bottom-0 w-4 bg-gradient-to-r from-[#FAFAF8] to-transparent" />
-          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-4 bg-gradient-to-l from-[#FAFAF8] to-transparent" />
-        </div>
-      )}
-    </div>
-  );
-
   const ColorSelector = ({
     colors,
     selected,
@@ -297,7 +332,7 @@ export default function ProductPage() {
       >
         <div className="relative flex-shrink-0 w-14 h-[4.5rem] rounded-xl overflow-hidden bg-[#F5F0EB]">
           {piece.images?.[0] ? (
-            <img src={piece.images[0]} alt={pieceName} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+            <SmartImage src={piece.images[0]} alt={pieceName} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
           ) : (
             <span className="absolute inset-0 flex items-center justify-center text-[#C4A882] text-lg font-display">LS</span>
           )}
@@ -318,7 +353,14 @@ export default function ProductPage() {
         </Link>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-          <GalleryBlock images={galleryImages} />
+          <ProductGallery
+            images={galleryImages}
+            selectedImage={selectedImage}
+            onSelect={setSelectedImage}
+            name={name}
+            costumeLabel={t('product.costume_label')}
+            onOpenLightbox={() => setLightboxOpen(true)}
+          />
 
           <div>
             {/* Header */}
@@ -441,7 +483,13 @@ export default function ProductPage() {
       </Link>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
-        <GalleryBlock images={product.images} />
+        <ProductGallery
+          images={product.images}
+          selectedImage={selectedImage}
+          onSelect={setSelectedImage}
+          name={name}
+          onOpenLightbox={() => setLightboxOpen(true)}
+        />
 
         {/* Info */}
         <div>

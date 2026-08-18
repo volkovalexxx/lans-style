@@ -2,19 +2,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import ProductCard from '../components/ProductCard';
+import Pagination from '../components/Pagination';
 import api from '../api/client';
-
-function getPages(current: number, total: number): (number | '...')[] {
-  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
-  const result: (number | '...')[] = [];
-  const add = (n: number) => { if (!result.includes(n)) result.push(n); };
-  add(1);
-  if (current > 3) result.push('...');
-  for (let i = Math.max(2, current - 1); i <= Math.min(total - 1, current + 1); i++) add(i);
-  if (current < total - 2) result.push('...');
-  add(total);
-  return result;
-}
 
 export default function Search() {
   const { t } = useTranslation();
@@ -67,35 +56,14 @@ export default function Search() {
           </div>
 
           {pages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-10">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="w-10 h-10 rounded-full border border-[#E5E5E3] text-sm font-medium disabled:opacity-30 hover:border-[#C4A882] transition-colors"
-              >
-                ‹
-              </button>
-              {getPages(page, pages).map((p, i) =>
-                p === '...'
-                  ? <span key={`e${i}`} className="w-10 h-10 flex items-center justify-center text-[#6B6B6B]">…</span>
-                  : <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                        page === p ? 'bg-[#1A1A1A] text-white' : 'border border-[#E5E5E3] hover:border-[#C4A882]'
-                      }`}
-                    >
-                      {p}
-                    </button>
-              )}
-              <button
-                onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                disabled={page === pages}
-                className="w-10 h-10 rounded-full border border-[#E5E5E3] text-sm font-medium disabled:opacity-30 hover:border-[#C4A882] transition-colors"
-              >
-                ›
-              </button>
-            </div>
+            <Pagination
+              current={page}
+              total={pages}
+              onChange={(p) => {
+                setPage(p);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            />
           )}
         </>
       ) : (
