@@ -131,7 +131,7 @@ export default function ProductCarousel({ products }: Props) {
 
                   {/* Labels */}
                   {labels.length > 0 && (
-                    <div className="absolute top-4 left-4 flex flex-col gap-1.5">
+                    <div className="absolute top-4 left-4 flex flex-col items-start gap-1.5">
                       {labels.map((label) => (
                         <span key={label} className={`text-[10px] font-medium px-2.5 py-1 rounded-full uppercase tracking-wider ${getLabelStyle(label)}`}>
                           {label}

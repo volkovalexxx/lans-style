@@ -66,7 +66,7 @@ export default function ProductCard({ product }: Props) {
           </div>
         )}
         {labels.length > 0 && (
-          <div className="absolute top-3 left-3 flex flex-col gap-1">
+          <div className="absolute top-3 left-3 flex flex-col items-start gap-1">
             {labels.map((label) => (
               <span
                 key={label}
