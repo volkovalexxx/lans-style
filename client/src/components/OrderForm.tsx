@@ -3,11 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import api from '../api/client';
 import { useCartStore } from '../store/cartStore';
+import { fbqTrack } from '../utils/fbq';
 
 export default function OrderForm() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { items, clearCart } = useCartStore();
+  const { items, totalByn, clearCart } = useCartStore();
   const [form, setForm] = useState({ name: '', phone: '', email: '', comment: '' });
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 
@@ -16,6 +17,7 @@ export default function OrderForm() {
     if (!form.name || !form.phone) return;
 
     setStatus('loading');
+    const leadValue = totalByn();
     try {
       await api.post('/orders', {
         ...form,
@@ -25,6 +27,10 @@ export default function OrderForm() {
           color: i.color,
           quantity: i.quantity,
         })),
+      });
+      fbqTrack('Lead', {
+        value: Number(leadValue.toFixed(2)),
+        currency: 'BYN',
       });
       clearCart();
       navigate('/order-success');

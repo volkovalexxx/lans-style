@@ -11,6 +11,7 @@ import { useFavStore } from '../store/favStore';
 import { useCurrencyStore, formatPrice } from '../store/currencyStore';
 import SmartImage from '../components/SmartImage';
 import { scrollChildIntoStrip } from '../utils/scrollChildIntoStrip';
+import { fbqTrack } from '../utils/fbq';
 
 function ProductGallery({
   images,
@@ -196,6 +197,13 @@ export default function ProductPage() {
       size: selectedSize,
       color: selectedColor,
     });
+    fbqTrack('AddToCart', {
+      content_ids: [String(product.id)],
+      content_name: product.nameRu,
+      content_type: 'product',
+      value: Number(product.priceByn),
+      currency: 'BYN',
+    });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -214,6 +222,13 @@ export default function ProductPage() {
       size: selectedTopSize,
       color: selectedTopColor,
     });
+    fbqTrack('AddToCart', {
+      content_ids: [String(top.id)],
+      content_name: top.nameRu,
+      content_type: 'product',
+      value: Number(top.priceByn),
+      currency: 'BYN',
+    });
     setAddedTop(true);
     setTimeout(() => setAddedTop(false), 2000);
   };
@@ -231,6 +246,13 @@ export default function ProductPage() {
       image: bottom.images?.[0],
       size: selectedBottomSize,
       color: selectedBottomColor,
+    });
+    fbqTrack('AddToCart', {
+      content_ids: [String(bottom.id)],
+      content_name: bottom.nameRu,
+      content_type: 'product',
+      value: Number(bottom.priceByn),
+      currency: 'BYN',
     });
     setAddedBottom(true);
     setTimeout(() => setAddedBottom(false), 2000);
@@ -252,6 +274,20 @@ export default function ProductPage() {
         image: item.images?.[0],
         size: extraSizes[idx],
       });
+      fbqTrack('AddToCart', {
+        content_ids: [String(item.id)],
+        content_name: item.nameRu,
+        content_type: 'product',
+        value: Number(item.priceByn),
+        currency: 'BYN',
+      });
+    });
+    fbqTrack('AddToCart', {
+      content_ids: [String(product.id)],
+      content_name: product.nameRu,
+      content_type: 'product_group',
+      value: Number(product.priceByn),
+      currency: 'BYN',
     });
     setAddedTop(false);
     setAddedBottom(false);
