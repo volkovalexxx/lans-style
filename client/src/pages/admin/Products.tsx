@@ -12,6 +12,7 @@ import {
   HiStar,
 } from 'react-icons/hi2';
 import ProductPicker from '../../components/admin/ProductPicker';
+import ExportCatalogButton from '../../components/admin/ExportCatalogButton';
 
 interface NbrbRates { usd: number; rub100: number; fetchedAt: number }
 let ratesCache: NbrbRates | null = null;
@@ -448,9 +449,10 @@ export default function AdminProducts() {
           <HiOutlineArchiveBox className="w-4 h-4" />
           Архив
         </Link>
+        <ExportCatalogButton className="ml-auto" />
         <button
           onClick={() => startEdit()}
-          className="ml-auto flex items-center gap-1.5 bg-[#1A1A1A] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#333] transition-colors"
+          className="flex items-center gap-1.5 bg-[#1A1A1A] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#333] transition-colors"
         >
           <HiOutlinePlus className="w-4 h-4" />
           <span className="hidden sm:inline">Добавить</span>

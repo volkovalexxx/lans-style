@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/client';
 import { AdminLayout } from './Dashboard';
 import { HiOutlinePencil, HiOutlineTrash, HiOutlinePlus } from 'react-icons/hi2';
+import ExportCatalogButton from '../../components/admin/ExportCatalogButton';
 
 interface Category {
   id: number;
@@ -48,6 +49,8 @@ export default function AdminCategories() {
     <AdminLayout>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-xl sm:text-2xl font-semibold">Категории</h1>
+        <div className="flex items-center gap-2">
+        <ExportCatalogButton />
         <button
           onClick={() => setEditing({ nameRu: '', nameEn: '', image: '' })}
           className="flex items-center gap-1.5 bg-[#1A1A1A] text-white px-4 py-2.5 rounded-xl text-sm font-medium hover:bg-[#333] transition-colors"
@@ -55,6 +58,7 @@ export default function AdminCategories() {
           <HiOutlinePlus className="w-4 h-4" />
           <span className="hidden sm:inline">Добавить</span>
         </button>
+        </div>
       </div>
 
       {editing && (
