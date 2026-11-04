@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import api from '../api/client';
 import { useCartStore } from '../store/cartStore';
 import { fbqTrack } from '../utils/fbq';
+import ConsentCheckbox from './ConsentCheckbox';
 
 export default function OrderForm() {
   const { t } = useTranslation();
@@ -11,10 +12,11 @@ export default function OrderForm() {
   const { items, totalByn, clearCart } = useCartStore();
   const [form, setForm] = useState({ name: '', phone: '', email: '', comment: '' });
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+  const [agreed, setAgreed] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name || !form.phone) return;
+    if (!form.name || !form.phone || !agreed) return;
 
     setStatus('loading');
     const leadValue = totalByn();
@@ -77,13 +79,15 @@ export default function OrderForm() {
         className="w-full border border-[#E5E5E3] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#C4A882] transition-colors resize-none"
       />
 
+      <ConsentCheckbox checked={agreed} onChange={setAgreed} />
+
       {status === 'error' && (
         <p className="text-red-500 text-sm">{t('order.error')}</p>
       )}
 
       <button
         type="submit"
-        disabled={status === 'loading'}
+        disabled={status === 'loading' || !agreed}
         className="w-full bg-[#1A1A1A] text-white py-3 rounded-xl text-sm font-medium hover:bg-[#333] transition-colors disabled:opacity-50"
       >
         {status === 'loading' ? '...' : t('order.submit')}

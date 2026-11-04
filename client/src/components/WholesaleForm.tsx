@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import api from '../api/client';
+import ConsentCheckbox from './ConsentCheckbox';
 
 export default function WholesaleForm() {
   const { t } = useTranslation();
@@ -8,9 +9,11 @@ export default function WholesaleForm() {
     company: '', name: '', phone: '', email: '', city: '', comment: '',
   });
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [agreed, setAgreed] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreed) return;
     setStatus('loading');
     try {
       await api.post('/wholesale', form);
@@ -49,9 +52,11 @@ export default function WholesaleForm() {
         onChange={(e) => setForm({ ...form, comment: e.target.value })} rows={3}
         className={`${inputClass} resize-none`} />
 
+      <ConsentCheckbox checked={agreed} onChange={setAgreed} />
+
       {status === 'error' && <p className="text-red-500 text-sm">{t('wholesale.error')}</p>}
 
-      <button type="submit" disabled={status === 'loading'}
+      <button type="submit" disabled={status === 'loading' || !agreed}
         className="w-full bg-[#C4A882] text-white py-3 rounded-xl text-sm font-medium hover:bg-[#A68E6A] transition-colors disabled:opacity-50">
         {status === 'loading' ? '...' : t('wholesale.submit')}
       </button>

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import Header from './Header';
 import Footer from './Footer';
+import CookieBanner from '../CookieBanner';
 
 export default function Layout({ children }: { children?: React.ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export default function Layout({ children }: { children?: React.ReactNode }) {
         {children ?? <Outlet />}
       </main>
       <Footer />
+      <CookieBanner />
     </div>
   );
 }

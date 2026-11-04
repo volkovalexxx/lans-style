@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { openCookieSettings } from '../../utils/cookieConsent';
 
 export default function Footer() {
   const { t } = useTranslation();
@@ -52,8 +53,35 @@ export default function Footer() {
           </div>
         </div>
 
+        {/* Consumer complaints */}
+        <div className="border-t border-white/10 mt-8 pt-6 text-xs leading-relaxed space-y-2">
+          <p>
+            Лицо, уполномоченное ООО &laquo;Ланс-Стиль&raquo; рассматривать обращения покупателей о нарушении их
+            прав, предусмотренных законодательством о защите прав потребителей:{' '}
+            <a href="tel:+375336576247" className="hover:text-[#C4A882] transition-colors whitespace-nowrap">+375 (33) 657-62-47</a>,{' '}
+            <a href="mailto:Lansstil2007@gmail.com" className="hover:text-[#C4A882] transition-colors">Lansstil2007@gmail.com</a>
+          </p>
+          <p>
+            Управление торговли и услуг Гродненского горисполкома (для обращений покупателей): 8 (0152) 62-69-44,
+            62-69-45, 62-69-67, 62-69-71, 62-69-47, 62-69-13
+          </p>
+        </div>
+
+        {/* Legal links */}
+        <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs">
+          <Link to="/privacy" className="hover:text-[#C4A882] transition-colors underline underline-offset-2">
+            Политика обработки персональных данных и cookie
+          </Link>
+          <Link to="/personal-data-consent" className="hover:text-[#C4A882] transition-colors underline underline-offset-2">
+            Согласие на обработку персональных данных
+          </Link>
+          <button type="button" onClick={openCookieSettings} className="hover:text-[#C4A882] transition-colors underline underline-offset-2">
+            Настройки cookie
+          </button>
+        </div>
+
         {/* Legal info */}
-        <div className="border-t border-white/10 mt-8 pt-6 text-xs leading-relaxed space-y-1">
+        <div className="border-t border-white/10 mt-6 pt-6 text-xs leading-relaxed space-y-1">
           <p>&copy; {new Date().getFullYear()} ООО &laquo;Ланс-Стиль&raquo;. {t('footer.rights')}.</p>
           <p>Республика Беларусь, г. Гродно, ул. Горького 91. УНП 590683474</p>
           <p>

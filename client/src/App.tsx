@@ -14,6 +14,8 @@ import Cooperation from './pages/Cooperation';
 import Payment from './pages/Payment';
 import Search from './pages/Search';
 import OrderSuccess from './pages/OrderSuccess';
+import Privacy from './pages/Privacy';
+import PersonalDataConsent from './pages/PersonalDataConsent';
 import AdminLogin from './pages/admin/Login';
 import AdminDashboard from './pages/admin/Dashboard';
 import AdminProducts from './pages/admin/Products';
@@ -51,6 +53,8 @@ export default function App() {
         <Route path="/payment" element={<Payment />} />
         <Route path="/search" element={<Search />} />
         <Route path="/order-success" element={<OrderSuccess />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/personal-data-consent" element={<PersonalDataConsent />} />
       </Route>
       <Route path="*" element={<NotFound />} />
       <Route path="/lansadmin/login" element={<AdminLogin />} />
