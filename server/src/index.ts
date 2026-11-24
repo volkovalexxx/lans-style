@@ -16,6 +16,7 @@ import settingsRouter from './routes/settings';
 import homeCardsRouter from './routes/homeCards';
 import reportsRouter, { sendReportToTelegram } from './routes/reports';
 import exportRouter from './routes/export';
+import shareRouter from './routes/share';
 import { generateMonthlyReport } from './services/reports';
 import { startBot } from './bot';
 
@@ -40,6 +41,7 @@ app.use('/api/settings', settingsRouter);
 app.use('/api/home-cards', homeCardsRouter);
 app.use('/api/reports', reportsRouter);
 app.use('/api/export', exportRouter);
+app.use('/api/share', shareRouter);
 
 // Health check
 app.get('/api/health', (_req, res) => {

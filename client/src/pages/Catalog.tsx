@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HiChevronDown, HiXMark, HiAdjustmentsHorizontal } from 'react-icons/hi2';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -76,21 +76,40 @@ function FilterDropdown({ label, active, count, children }: {
 export default function Catalog() {
   const { t, i18n } = useTranslation();
   const { categorySlug } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const isRu = i18n.language === 'ru';
   const { currency } = useCurrencyStore();
   const currencySymbol = currency === 'USD' ? '$' : currency === 'RUB' ? '₽' : 'BYN';
 
-  const [activeCategorySlug, setActiveCategorySlug] = useState<string | undefined>(categorySlug);
-  const [sort, setSort] = useState(searchParams.get('sort') || '');
-  const [page, setPage] = useState(1);
-  const [selectedSizes, setSelectedSizes] = useState<string[]>([]);
-  const [selectedColors, setSelectedColors] = useState<string[]>([]);
-  const [priceFrom, setPriceFrom] = useState('');
-  const [priceTo, setPriceTo] = useState('');
+  // Filters live in the URL so "back" from a product restores them exactly.
+  const activeCategorySlug = categorySlug;
+  const sort = searchParams.get('sort') || '';
+  const page = Number(searchParams.get('page')) || 1;
+  const selectedSizes = searchParams.getAll('size');
+  const selectedColors = searchParams.getAll('color');
+  const priceFrom = searchParams.get('priceMin') || '';
+  const priceTo = searchParams.get('priceMax') || '';
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  useEffect(() => { setActiveCategorySlug(categorySlug); }, [categorySlug]);
+  // Any filter change resets pagination; replace keeps one history entry for the catalog.
+  const updateParams = (changes: Record<string, string | string[]>, keepPage = false) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      for (const [k, v] of Object.entries(changes)) {
+        next.delete(k);
+        [v].flat().filter(Boolean).forEach((x) => next.append(k, x));
+      }
+      if (!keepPage) next.delete('page');
+      return next;
+    }, { replace: true });
+  };
+  const setSort = (v: string) => updateParams({ sort: v });
+  const setPage = (p: number) => updateParams({ page: p > 1 ? String(p) : '' }, true);
+  const setSelectedSizes = (v: string[]) => updateParams({ size: v });
+  const setSelectedColors = (v: string[]) => updateParams({ color: v });
+  const setPriceFrom = (v: string) => updateParams({ priceMin: v });
+  const setPriceTo = (v: string) => updateParams({ priceMax: v });
 
   const { data: categories } = useApi<any[]>('/categories');
   const { data: filterData } = useApi<FilterData>('/products/filters',
@@ -119,34 +138,21 @@ export default function Catalog() {
 
   const filteredProducts = data?.products ?? [];
 
-  useEffect(() => { setPage(1); }, [activeCategorySlug, sort, selectedSizes, selectedColors, priceFrom, priceTo]);
-
   const selectCategory = (slug?: string) => {
-    setActiveCategorySlug(slug);
-    const url = slug ? `/catalog/${slug}` : '/catalog';
-    window.history.replaceState(null, '', url);
+    const next = new URLSearchParams(searchParams);
+    next.delete('page');
+    const qs = next.toString();
+    navigate(`${slug ? `/catalog/${slug}` : '/catalog'}${qs ? `?${qs}` : ''}`, { replace: true });
   };
 
-  const toggleSize = (size: string) => {
-    setSelectedSizes((prev) =>
-      prev.includes(size) ? prev.filter((s) => s !== size) : [...prev, size]
-    );
-  };
+  const toggleSize = (size: string) =>
+    setSelectedSizes(selectedSizes.includes(size) ? selectedSizes.filter((s) => s !== size) : [...selectedSizes, size]);
 
-  const toggleColor = (raw: string) => {
-    setSelectedColors((prev) =>
-      prev.includes(raw) ? prev.filter((c) => c !== raw) : [...prev, raw]
-    );
-  };
+  const toggleColor = (raw: string) =>
+    setSelectedColors(selectedColors.includes(raw) ? selectedColors.filter((c) => c !== raw) : [...selectedColors, raw]);
 
-  const resetFilters = () => {
-    setSelectedSizes([]);
-    setSelectedColors([]);
-    setPriceFrom('');
-    setPriceTo('');
-    setSort('');
-    setPage(1);
-  };
+  const resetFilters = () =>
+    updateParams({ size: [], color: [], priceMin: '', priceMax: '', sort: '' });
 
   const hasActiveFilters = selectedSizes.length > 0 || selectedColors.length > 0 || !!priceFrom || !!priceTo || !!sort;
 
@@ -394,7 +400,7 @@ export default function Catalog() {
                 </div>
                 {(priceFrom || priceTo) && (
                   <button
-                    onClick={() => { setPriceFrom(''); setPriceTo(''); close(); }}
+                    onClick={() => { updateParams({ priceMin: '', priceMax: '' }); close(); }}
                     className="mt-3 text-xs text-[#C4A882] hover:underline"
                   >
                     {t('catalog.reset')}
@@ -604,7 +610,7 @@ export default function Catalog() {
             } catch { return null; }
           })}
           {(priceFrom || priceTo) && (
-            <FilterChip onRemove={() => { setPriceFrom(''); setPriceTo(''); }}>
+            <FilterChip onRemove={() => updateParams({ priceMin: '', priceMax: '' })}>
               {priceFrom || '0'} — {priceTo || '∞'} {currencySymbol}
             </FilterChip>
           )}

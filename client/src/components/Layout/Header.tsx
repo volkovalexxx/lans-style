@@ -3,8 +3,9 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
   HiOutlineShoppingBag, HiOutlineHeart, HiOutlineBars3, HiOutlineXMark,
-  HiOutlineMagnifyingGlass,
+  HiOutlineMagnifyingGlass, HiOutlinePhone,
 } from 'react-icons/hi2';
+import { FaInstagram } from 'react-icons/fa6';
 import { useCartStore } from '../../store/cartStore';
 import { useFavStore } from '../../store/favStore';
 import { useCurrencyStore, formatPrice } from '../../store/currencyStore';
@@ -125,6 +126,14 @@ export default function Header() {
                 : <HiOutlineMagnifyingGlass className="w-6 h-6" />
               }
             </button>
+
+            <a href="tel:+375336576247" aria-label="Позвонить +375 33 657-62-47" className="p-1.5 sm:p-2 hover:text-[#C4A882] transition-colors">
+              <HiOutlinePhone className="w-6 h-6" />
+            </a>
+
+            <a href="https://www.instagram.com/lans_style" target="_blank" rel="noopener noreferrer" aria-label="Instagram Lans Style" className="p-1.5 sm:p-2 hover:text-[#C4A882] transition-colors">
+              <FaInstagram className="w-6 h-6" />
+            </a>
 
             <Link to="/favorites" className="relative p-2 hover:text-[#C4A882] transition-colors">
               <HiOutlineHeart className="w-6 h-6" />

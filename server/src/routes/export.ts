@@ -11,13 +11,13 @@ const router = Router();
 const SITE_URL = (process.env.SITE_URL || 'https://lans-style.by').replace(/\/$/, '');
 const BRAND = process.env.EXPORT_BRAND || 'Lans Style';
 
-function absUrl(url?: string | null): string {
+export function absUrl(url?: string | null): string {
   if (!url) return '';
   if (/^https?:\/\//i.test(url)) return url;
   return `${SITE_URL}${url.startsWith('/') ? '' : '/'}${url}`;
 }
 
-function stripHtml(s?: string | null): string {
+export function stripHtml(s?: string | null): string {
   if (!s) return '';
   return s
     .replace(/<br\s*\/?>/gi, ' ')

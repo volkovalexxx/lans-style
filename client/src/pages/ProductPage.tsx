@@ -163,17 +163,16 @@ export default function ProductPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   // Costume-specific state
-  const [selectedTopSize, setSelectedTopSize] = useState('');
-  const [selectedTopColor, setSelectedTopColor] = useState('');
-  const [selectedBottomSize, setSelectedBottomSize] = useState('');
-  const [selectedBottomColor, setSelectedBottomColor] = useState('');
-  const [extraSizes, setExtraSizes] = useState<string[]>(['', '', '']);
   const [addedTop, setAddedTop] = useState(false);
   const [addedBottom, setAddedBottom] = useState(false);
   const [addedSet, setAddedSet] = useState(false);
+  const [triedAdd, setTriedAdd] = useState(false);
 
   useEffect(() => {
     setSelectedImage(0);
+    setSelectedSize('');
+    setSelectedColor('');
+    setTriedAdd(false);
   }, [slug]);
 
   if (loading) return <div className="text-center py-20">...</div>;
@@ -184,7 +183,23 @@ export default function ProductPage() {
   const price = formatPrice(product.priceByn, product.priceUsd, product.priceRub || 0, currency);
   const fav = isFavorite(product.id);
 
+  // Size/colour are required whenever the product offers them.
+  const missing = [
+    product.sizes?.length > 0 && !selectedSize && (isRu ? 'размер' : 'size'),
+    product.colors?.length > 0 && !selectedColor && (isRu ? 'цвет' : 'colour'),
+  ].filter(Boolean) as string[];
+  const choiceHint = triedAdd && missing.length > 0 && (
+    <p role="alert" className="text-sm text-red-500 mb-3">
+      {isRu ? 'Выберите' : 'Please select'} {missing.join(isRu ? ' и ' : ' and ')}
+    </p>
+  );
+  const canAdd = () => {
+    setTriedAdd(true);
+    return missing.length === 0;
+  };
+
   const handleAddToCart = () => {
+    if (!canAdd()) return;
     addItem({
       productId: product.id,
       slug: product.slug,
@@ -219,8 +234,8 @@ export default function ProductPage() {
       priceUsd: Number(top.priceUsd),
       priceRub: Number(top.priceRub || 0),
       image: top.images?.[0],
-      size: selectedTopSize,
-      color: selectedTopColor,
+      size: selectedSize,
+      color: selectedColor,
     });
     fbqTrack('AddToCart', {
       content_ids: [String(top.id)],
@@ -244,8 +259,8 @@ export default function ProductPage() {
       priceUsd: Number(bottom.priceUsd),
       priceRub: Number(bottom.priceRub || 0),
       image: bottom.images?.[0],
-      size: selectedBottomSize,
-      color: selectedBottomColor,
+      size: selectedSize,
+      color: selectedColor,
     });
     fbqTrack('AddToCart', {
       content_ids: [String(bottom.id)],
@@ -259,10 +274,11 @@ export default function ProductPage() {
   };
 
   const handleAddSetToCart = () => {
+    if (!canAdd()) return;
     handleAddTopToCart();
     handleAddBottomToCart();
     const extraItems = [product.costumeItem3, product.costumeItem4, product.costumeItem5].filter(Boolean);
-    extraItems.forEach((item: any, idx: number) => {
+    extraItems.forEach((item: any) => {
       addItem({
         productId: item.id,
         slug: item.slug,
@@ -272,7 +288,8 @@ export default function ProductPage() {
         priceUsd: Number(item.priceUsd),
         priceRub: Number(item.priceRub || 0),
         image: item.images?.[0],
-        size: extraSizes[idx],
+        size: selectedSize,
+        color: selectedColor,
       });
       fbqTrack('AddToCart', {
         content_ids: [String(item.id)],
@@ -464,6 +481,7 @@ export default function ProductPage() {
             )}
 
             {/* Buy set */}
+            {choiceHint}
             <button
               onClick={handleAddSetToCart}
               disabled={!top.inStock || !bottom.inStock}
@@ -636,6 +654,7 @@ export default function ProductPage() {
           )}
 
           {/* Add to cart */}
+          {choiceHint}
           <button
             onClick={handleAddToCart}
             disabled={!product.inStock}

@@ -180,8 +180,8 @@ export default function Contacts() {
       <section className="max-w-6xl mx-auto px-4 sm:px-6 pb-16 md:pb-20">
         <div className="rounded-3xl overflow-hidden border border-[#E5E5E3] aspect-[16/9] md:aspect-[21/9] bg-[#F5F0EB]">
           <iframe
-            title="Lans Style — Гродно, Горького 91"
-            src="https://yandex.com/map-widget/v1/?ll=23.829%2C53.668&z=14&text=%D0%93%D1%80%D0%BE%D0%B4%D0%BD%D0%BE%2C%20%D1%83%D0%BB.%20%D0%93%D0%BE%D1%80%D1%8C%D0%BA%D0%BE%D0%B3%D0%BE%2091"
+            title="Lans Style на карте: шоурум Советская 14 и офис Горького 91"
+            src="https://yandex.com/map-widget/v1/?ll=23.8248%2C53.6942&z=13&pt=23.830897%2C53.681287%2Cpm2rdl~23.818753%2C53.707156%2Cpm2grm"
             className="w-full h-full border-0"
             loading="lazy"
           />
