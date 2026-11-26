@@ -33,6 +33,14 @@ export function setCookieConsent(value: CookieConsent) {
   } catch {
     /* pixel errors must not break the app */
   }
+  // Yandex Metrika is not loaded at all without consent; a later "necessary" choice takes effect on next page load.
+  if (value === 'all') {
+    try {
+      (window as { lansLoadMetrika?: () => void }).lansLoadMetrika?.();
+    } catch {
+      /* analytics errors must not break the app */
+    }
+  }
 }
 
 export function openCookieSettings() {

@@ -118,9 +118,8 @@ export default function Contacts() {
               <HiOutlineClock className="w-6 h-6 text-[#C4A882]" />
             </div>
             <div>
-              <p className="text-xs uppercase tracking-wider text-[#6B6B6B] mb-1">Режим работы</p>
-              <p className="font-medium text-[#1A1A1A]">Пн–Пт: 10:00 — 20:00</p>
-              <p className="text-xs text-[#6B6B6B] mt-0.5">Для розничных покупателей</p>
+              <p className="text-xs uppercase tracking-wider text-[#6B6B6B] mb-1">Режим работы магазина</p>
+              <p className="font-medium text-[#1A1A1A]">Пн–Вс: 10:00 — 20:00</p>
             </div>
           </div>
         </div>
@@ -158,8 +157,7 @@ export default function Contacts() {
             <h3 className="font-display text-2xl font-semibold mb-2">ул. Советская, 14</h3>
             <p className="text-[#6B6B6B] text-sm">Республика Беларусь, г. Гродно</p>
             <div className="mt-3 pt-3 border-t border-[#E5E5E3]">
-              <p className="text-sm text-[#1A1A1A] font-medium">Пн–Пт: 10:00–20:00</p>
-              <p className="text-sm text-[#1A1A1A] font-medium">Сб–Вс: 11:00–20:00</p>
+              <p className="text-sm text-[#1A1A1A] font-medium">Пн–Вс: 10:00–20:00</p>
             </div>
             <a
               href="https://www.instagram.com/lans_style"

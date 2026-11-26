@@ -45,7 +45,7 @@ export default function Footer() {
             <h4 className="text-white font-medium mb-3">{t('nav.contacts')}</h4>
             <div className="space-y-2 text-sm">
               <p>Шоурум: г. Гродно, ул. Советская 14</p>
-              <p>Пн–Пт 10:00–20:00, Сб–Вс 11:00–20:00</p>
+              <p>Пн–Вс 10:00–20:00</p>
               <a href="tel:+375336576247" className="block hover:text-[#C4A882] transition-colors">+375 33 657-62-47 <span className="text-white/50">(общий)</span></a>
               <a href="tel:+375445218619" className="block hover:text-[#C4A882] transition-colors">+375 44 521-86-19 <span className="text-white/50">(Гродно, Советская 14)</span></a>
               <a href="mailto:Lansstil2007@gmail.com" className="block hover:text-[#C4A882] transition-colors break-all">
